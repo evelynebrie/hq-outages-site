@@ -1,0 +1,209 @@
+{
+ "max_bytes": 47185920,
+ "files": {
+  "cumulative_snapshots/cumulative_20261006_central.geojson": [
+   {
+    "path": "cumulative_snapshots/cumulative_20261006_central.part01.geojson",
+    "sha1": "a0bad4ac095f"
+   },
+   {
+    "path": "cumulative_snapshots/cumulative_20261006_central.part02.geojson",
+    "sha1": "0b5175a4b609"
+   }
+  ],
+  "cumulative_snapshots/cumulative_20261006_central_west.geojson": [
+   {
+    "path": "cumulative_snapshots/cumulative_20261006_central_west.part01.geojson",
+    "sha1": "c33e7c98b8c1"
+   },
+   {
+    "path": "cumulative_snapshots/cumulative_20261006_central_west.part02.geojson",
+    "sha1": "15fe7658ce8e"
+   },
+   {
+    "path": "cumulative_snapshots/cumulative_20261006_central_west.part03.geojson",
+    "sha1": "474e504effdb"
+   }
+  ],
+  "cumulative_snapshots/cumulative_20261006_west.geojson": [
+   {
+    "path": "cumulative_snapshots/cumulative_20261006_west.part01.geojson",
+    "sha1": "f3d699acf6ea"
+   },
+   {
+    "path": "cumulative_snapshots/cumulative_20261006_west.part02.geojson",
+    "sha1": "fd13eee60ff0"
+   }
+  ],
+  "cumulative_snapshots/cumulative_20261007_central.geojson": [
+   {
+    "path": "cumulative_snapshots/cumulative_20261007_central.part01.geojson",
+    "sha1": "552dffc959e9"
+   },
+   {
+    "path": "cumulative_snapshots/cumulative_20261007_central.part02.geojson",
+    "sha1": "dc29eb72ecac"
+   }
+  ],
+  "cumulative_snapshots/cumulative_20261007_central_west.geojson": [
+   {
+    "path": "cumulative_snapshots/cumulative_20261007_central_west.part01.geojson",
+    "sha1": "742c18fef2b1"
+   },
+   {
+    "path": "cumulative_snapshots/cumulative_20261007_central_west.part02.geojson",
+    "sha1": "0e63c2601330"
+   },
+   {
+    "path": "cumulative_snapshots/cumulative_20261007_central_west.part03.geojson",
+    "sha1": "1c98ce4720f9"
+   }
+  ],
+  "cumulative_snapshots/cumulative_20261007_west.geojson": [
+   {
+    "path": "cumulative_snapshots/cumulative_20261007_west.part01.geojson",
+    "sha1": "9faa47a7a470"
+   },
+   {
+    "path": "cumulative_snapshots/cumulative_20261007_west.part02.geojson",
+    "sha1": "c08e484fb692"
+   }
+  ],
+  "cumulative_snapshots/cumulative_20261008_central.geojson": [
+   {
+    "path": "cumulative_snapshots/cumulative_20261008_central.part01.geojson",
+    "sha1": "f41420576d25"
+   },
+   {
+    "path": "cumulative_snapshots/cumulative_20261008_central.part02.geojson",
+    "sha1": "c2ca1d9c3c9a"
+   }
+  ],
+  "cumulative_snapshots/cumulative_20261008_central_west.geojson": [
+   {
+    "path": "cumulative_snapshots/cumulative_20261008_central_west.part01.geojson",
+    "sha1": "832e95485c22"
+   },
+   {
+    "path": "cumulative_snapshots/cumulative_20261008_central_west.part02.geojson",
+    "sha1": "629b7a2ce34b"
+   },
+   {
+    "path": "cumulative_snapshots/cumulative_20261008_central_west.part03.geojson",
+    "sha1": "5eaa00c6b2da"
+   }
+  ],
+  "cumulative_snapshots/cumulative_20261008_west.geojson": [
+   {
+    "path": "cumulative_snapshots/cumulative_20261008_west.part01.geojson",
+    "sha1": "deaa7aa82fc9"
+   },
+   {
+    "path": "cumulative_snapshots/cumulative_20261008_west.part02.geojson",
+    "sha1": "bbda11c9f71b"
+   }
+  ],
+  "cumulative_snapshots/cumulative_20261009_central.geojson": [
+   {
+    "path": "cumulative_snapshots/cumulative_20261009_central.part01.geojson",
+    "sha1": "fb3dacf57aa7"
+   },
+   {
+    "path": "cumulative_snapshots/cumulative_20261009_central.part02.geojson",
+    "sha1": "ea639c25aa89"
+   }
+  ],
+  "cumulative_snapshots/cumulative_20261009_central_west.geojson": [
+   {
+    "path": "cumulative_snapshots/cumulative_20261009_central_west.part01.geojson",
+    "sha1": "1887d06b3200"
+   },
+   {
+    "path": "cumulative_snapshots/cumulative_20261009_central_west.part02.geojson",
+    "sha1": "e19b8feca5cc"
+   },
+   {
+    "path": "cumulative_snapshots/cumulative_20261009_central_west.part03.geojson",
+    "sha1": "9c471f1f81fa"
+   }
+  ],
+  "cumulative_snapshots/cumulative_20261009_west.geojson": [
+   {
+    "path": "cumulative_snapshots/cumulative_20261009_west.part01.geojson",
+    "sha1": "64335d2ca5d2"
+   },
+   {
+    "path": "cumulative_snapshots/cumulative_20261009_west.part02.geojson",
+    "sha1": "542e8b7db849"
+   }
+  ],
+  "cumulative_snapshots/cumulative_20261010_central.geojson": [
+   {
+    "path": "cumulative_snapshots/cumulative_20261010_central.part01.geojson",
+    "sha1": "be2a75c9b123"
+   },
+   {
+    "path": "cumulative_snapshots/cumulative_20261010_central.part02.geojson",
+    "sha1": "8b4c7d0c3e40"
+   }
+  ],
+  "cumulative_snapshots/cumulative_20261010_central_west.geojson": [
+   {
+    "path": "cumulative_snapshots/cumulative_20261010_central_west.part01.geojson",
+    "sha1": "d2adc2def861"
+   },
+   {
+    "path": "cumulative_snapshots/cumulative_20261010_central_west.part02.geojson",
+    "sha1": "f207acfa5cd9"
+   },
+   {
+    "path": "cumulative_snapshots/cumulative_20261010_central_west.part03.geojson",
+    "sha1": "89b93c604807"
+   }
+  ],
+  "cumulative_snapshots/cumulative_20261010_west.geojson": [
+   {
+    "path": "cumulative_snapshots/cumulative_20261010_west.part01.geojson",
+    "sha1": "8d723f5d1ea7"
+   },
+   {
+    "path": "cumulative_snapshots/cumulative_20261010_west.part02.geojson",
+    "sha1": "35c23c6d9feb"
+   }
+  ],
+  "total/total_exposure_central.geojson": [
+   {
+    "path": "total/total_exposure_central.part01.geojson",
+    "sha1": "2fd2248c571e"
+   },
+   {
+    "path": "total/total_exposure_central.part02.geojson",
+    "sha1": "07972b29b96f"
+   }
+  ],
+  "total/total_exposure_central_west.geojson": [
+   {
+    "path": "total/total_exposure_central_west.part01.geojson",
+    "sha1": "664793033c61"
+   },
+   {
+    "path": "total/total_exposure_central_west.part02.geojson",
+    "sha1": "f5a582bc17c4"
+   },
+   {
+    "path": "total/total_exposure_central_west.part03.geojson",
+    "sha1": "59e21dda8498"
+   }
+  ],
+  "total/total_exposure_west.geojson": [
+   {
+    "path": "total/total_exposure_west.part01.geojson",
+    "sha1": "5f8e005a2713"
+   },
+   {
+    "path": "total/total_exposure_west.part02.geojson",
+    "sha1": "4d24a7c88646"
+   }
+  ]
+ }
+}

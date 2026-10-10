@@ -1,0 +1,94 @@
+{
+  "monthly_summaries": {
+    "2026-01": {
+      "month": "2026-01",
+      "hexagons_affected": 29360,
+      "total_occurrences_month": 472241,
+      "total_days_affected": 40172,
+      "max_occurrences": 467,
+      "mean_occurrences": 16.08,
+      "mean_days_affected": 1.37
+    },
+    "2026-02": {
+      "month": "2026-02",
+      "hexagons_affected": 26954,
+      "total_occurrences_month": 312177,
+      "total_days_affected": 32081,
+      "max_occurrences": 225,
+      "mean_occurrences": 11.58,
+      "mean_days_affected": 1.19
+    },
+    "2026-03": {
+      "month": "2026-03",
+      "hexagons_affected": 72088,
+      "total_occurrences_month": 2197921,
+      "total_days_affected": 125117,
+      "max_occurrences": 359,
+      "mean_occurrences": 30.49,
+      "mean_days_affected": 1.74
+    },
+    "2026-04": {
+      "month": "2026-04",
+      "hexagons_affected": 48017,
+      "total_occurrences_month": 639026,
+      "total_days_affected": 66855,
+      "max_occurrences": 444,
+      "mean_occurrences": 13.31,
+      "mean_days_affected": 1.39
+    },
+    "2026-05": {
+      "month": "2026-05",
+      "hexagons_affected": 58641,
+      "total_occurrences_month": 1492683,
+      "total_days_affected": 96135,
+      "max_occurrences": 366,
+      "mean_occurrences": 25.45,
+      "mean_days_affected": 1.64
+    },
+    "2026-06": {
+      "month": "2026-06",
+      "hexagons_affected": 65894,
+      "total_occurrences_month": 1021290,
+      "total_days_affected": 103816,
+      "max_occurrences": 352,
+      "mean_occurrences": 15.5,
+      "mean_days_affected": 1.58
+    },
+    "2026-07": {
+      "month": "2026-07",
+      "hexagons_affected": 72608,
+      "total_occurrences_month": 1311381,
+      "total_days_affected": 119014,
+      "max_occurrences": 895,
+      "mean_occurrences": 18.06,
+      "mean_days_affected": 1.64
+    },
+    "2026-08": {
+      "month": "2026-08",
+      "hexagons_affected": 49639,
+      "total_occurrences_month": 624249,
+      "total_days_affected": 64502,
+      "max_occurrences": 409,
+      "mean_occurrences": 12.58,
+      "mean_days_affected": 1.3
+    },
+    "2026-09": {
+      "month": "2026-09",
+      "hexagons_affected": 45671,
+      "total_occurrences_month": 751717,
+      "total_days_affected": 70468,
+      "max_occurrences": 365,
+      "mean_occurrences": 16.46,
+      "mean_days_affected": 1.54
+    },
+    "2026-10": {
+      "month": "2026-10",
+      "hexagons_affected": 19996,
+      "total_occurrences_month": 218471,
+      "total_days_affected": 23213,
+      "max_occurrences": 167,
+      "mean_occurrences": 10.93,
+      "mean_days_affected": 1.16
+    }
+  }
+}
