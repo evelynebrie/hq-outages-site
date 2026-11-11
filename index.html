@@ -1,0 +1,2977 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Où sont les pannes?</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='7' fill='%23f59e0b' opacity='0.3'><animate attributeName='r' values='7;15;7' dur='1.6s' repeatCount='indefinite'/><animate attributeName='opacity' values='0.6;0;0.6' dur='1.6s' repeatCount='indefinite'/></circle><circle cx='16' cy='16' r='7' fill='%23f59e0b'/></svg>">
+    <script src='https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.js'></script>
+    <link href='https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.css' rel='stylesheet' />
+    <script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.0/mapbox-gl-geocoder.min.js"></script>
+    <link rel="stylesheet" href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.0/mapbox-gl-geocoder.css" type="text/css">
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    <script data-goatcounter="https://ebudem.goatcounter.com/count"
+            async src="//gc.zgo.at/count.js"></script>
+    <style>
+        * { box-sizing: border-box; }
+        body { margin:0; padding:0; font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+        #map { position:absolute; top:0; bottom:0; width:100%; }
+        .mapboxgl-popup-content { padding: 15px; max-width: 300px; }
+
+        /* Stats panel (Statistiques) */
+        .info {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            padding: 16px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            min-width: 260px;
+            max-width: 320px;
+            z-index: 1;
+        }
+        .info h4 { margin: 0; color: #111827; font-size: 16px; font-weight: 600; }
+        .panel-title {
+            margin: 0 0 14px !important;
+            color: #111827 !important;
+            font-size: 19px !important;
+            font-weight: 600 !important;
+            padding-bottom: 12px !important;
+            border-bottom: 3px solid #f3f4f6 !important;
+            line-height: 1.2 !important;
+        }
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 20px;
+            padding: 8px 0;
+            border-bottom: 1px solid #f3f4f6;
+        }
+        .info-row:last-child { border-bottom: none; }
+        .info-label { font-weight: 500; color: #6b7280; font-size: 13px; }
+        .info-value { font-weight: 600; color: #111827; font-size: 14px; }
+        .loading { color: #9ca3af; font-size: 12px; font-style: italic; }
+
+        /* Option B stats cards */
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .stats-card {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 12px 14px;
+        }
+        .stats-card .card-label { font-size: 11px; color: #6b7280; font-weight: 500; line-height: 1.35; margin-bottom: 6px; }
+        .stats-card .card-value { font-size: 20px; font-weight: 700; color: #111827; font-variant-numeric: tabular-nums; }
+        .stats-card-current {
+            grid-column: span 2;
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            border-color: #fcd34d;
+        }
+        .stats-card-current .card-label { color: #78350f; }
+        .stats-card-current .card-value { color: #78350f; display: flex; align-items: center; gap: 8px; }
+        .stats-card-current .card-value::before {
+            content: '';
+            width: 8px; height: 8px;
+            background: #f59e0b;
+            border-radius: 50%;
+            box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.25);
+        }
+
+        /* Hourly chart inside Statistiques */
+        .hourly-chart { margin-top: 16px; padding-top: 14px; }
+        .hourly-chart-title {
+            font-size: 11px; font-weight: 600; color: #6b7280;
+            text-transform: uppercase; letter-spacing: 0.06em;
+            margin: 0 0 6px;
+        }
+        .hourly-chart-sub { font-size: 11px; color: #9ca3af; margin: 0 0 16px; }
+        .hourly-chart-wrap { display: flex; align-items: stretch; gap: 6px; }
+        .hourly-yaxis {
+            display: flex; flex-direction: column; justify-content: space-between;
+            font-size: 10px; color: #9ca3af; font-variant-numeric: tabular-nums;
+            text-align: right; padding: 2px 0 14px; min-width: 24px;
+        }
+        .hourly-chart-body { flex: 1; min-width: 0; }
+        .hourly-chart-svg { width: 100%; height: 70px; display: block; }
+        .hourly-axis-labels {
+            display: flex; justify-content: space-between;
+            font-size: 10px; color: #9ca3af; margin-top: 2px;
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* Yellow badge for Pannes en cours */
+        .current-badge {
+            background: #f5d05d;
+            color: #422006;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+        }
+
+        /* Legend — embedded as a sub-section inside the Statistiques panel */
+        .legend {
+            margin-top: 18px;
+            padding-top: 16px;
+            border-top: 1px solid #e5e7eb;
+            font-size: 13px;
+            line-height: 22px;
+            color: #374151;
+        }
+        .legend i { width:20px; height:20px; float:left; margin-right:10px; opacity:0.9; border-radius: 3px; }
+        .legend h4 { margin:0; font-size:15px; color:#111827; }
+        .legend > div { margin-bottom: 6px; }
+        .legend-last-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+        .legend-last-row span { display: flex; align-items: center; }
+        .legend-last-row span i { float: none; margin-right: 10px; }
+        .legend-caption { font-size: 11px; color: #9ca3af; line-height: 1.4; }
+        .legend-info-wrap {
+            position: relative;
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+        }
+        .legend-detail-text {
+            margin: 0;
+            flex: 1;
+            font-size: 11.5px;
+            color: #6b7280;
+            line-height: 1.45;
+        }
+        .legend-detail-text strong { color: #374151; font-weight: 600; }
+
+        /* Gradient legend (horizontal scale) */
+        .scale-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: #374151;
+            font-weight: 600;
+            margin: 0 0 6px;
+        }
+        .gradient-bar {
+            display: flex;
+            height: 14px;
+            border-radius: 3px;
+            overflow: hidden;
+            margin: 0 0 6px;
+        }
+        .gradient-bar > div { flex: 1; }
+        .range-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 10.5px;
+            color: #9ca3af;
+            font-variant-numeric: tabular-nums;
+        }
+        .legend-info-btn {
+            width: 22px; height: 22px;
+            border-radius: 50%;
+            background: #e5e7eb;
+            color: #374151;
+            border: none;
+            cursor: pointer;
+            font-style: italic;
+            font-family: Georgia, "Times New Roman", serif;
+            font-weight: bold;
+            font-size: 13px;
+            display: flex; align-items: center; justify-content: center;
+            padding: 0; line-height: 1;
+            transition: background 0.15s;
+        }
+        .legend-info-btn:hover { background: #d1d5db; }
+        .legend-info-popover {
+            display: none;
+            position: absolute;
+            right: 0;
+            bottom: 30px;
+            width: 280px;
+            background: white;
+            color: #374151;
+            font-size: 11px;
+            line-height: 1.5;
+            padding: 10px 12px;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+            z-index: 1500;
+        }
+        .legend-info-popover.open { display: block; }
+        .legend-info-popover p { margin: 0 0 14px; }
+        .legend-info-popover p:last-child { margin-bottom: 0; }
+
+        /* Filter controls */
+        .controls {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: white;
+            padding: 18px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            width: 300px;
+            z-index: 1;
+            box-sizing: border-box;
+        }
+        .controls h4 { margin: 0 0 12px; font-size: 14px; color: #111827; }
+
+        /* Résumé complet button */
+        .summary-btn {
+            position: relative;
+            display: flex; flex-direction: column; width: 100%;
+            padding: 12px 14px;
+            border: 2px solid #e5e7eb; background: white;
+            border-radius: 8px; cursor: pointer; text-align: left; font-family: inherit;
+            margin-bottom: 8px; transition: all 0.15s;
+            box-sizing: border-box;
+        }
+        .summary-btn strong { font-size: 13px; color: #111827; }
+        .summary-btn small { font-size: 11px; color: #4b5563; margin-top: 2px; }
+        .summary-btn:hover { border-color: #9ca3af; }
+        .summary-btn.active { border-color: #111827; }
+        .summary-btn.active::after,
+        .current-btn.active::after {
+            content: '✓';
+            position: absolute;
+            top: -8px; right: -8px;
+            width: 22px; height: 22px;
+            background: #111827; color: white;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 13px; font-weight: bold;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        }
+
+        /* Pannes en cours — yellow */
+        .current-btn {
+            position: relative;
+            display: flex; flex-direction: column; width: 100%;
+            padding: 12px 14px;
+            border: 1.5px solid #fcd34d;
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            border-radius: 8px; cursor: pointer; text-align: left; font-family: inherit;
+            margin-bottom: 8px; transition: all 0.2s;
+            box-sizing: border-box;
+        }
+        .current-btn strong { font-size: 13px; color: #78350f; display: flex; align-items: center; gap: 8px; }
+        .current-btn strong::before {
+            content: '';
+            width: 8px; height: 8px; background: #f59e0b;
+            border-radius: 50%;
+            box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.25);
+            animation: pulse-dot 2s infinite;
+        }
+        .current-btn small { font-size: 11px; color: #92400e; margin-top: 3px; margin-left: 16px; }
+        .current-btn:hover {
+            border-color: #f59e0b;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 10px rgba(245, 158, 11, 0.15);
+        }
+        .current-btn.active {
+            border-color: #d97706;
+            background: linear-gradient(135deg, #fde68a 0%, #fcd34d 100%);
+        }
+        @keyframes pulse-dot {
+            0%, 100% { box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.25); }
+            50%      { box-shadow: 0 0 0 6px rgba(245, 158, 11, 0.08); }
+        }
+
+        .or-divider { text-align: center; font-size: 11px; color: #9ca3af; margin: 12px 0; }
+
+        /* Calendar */
+        .calendar { position: relative; border: 2px solid #e5e7eb; border-radius: 8px; padding: 10px; transition: all 0.15s; }
+        .calendar.active { border-color: #111827; }
+        .calendar.active::after {
+            content: '✓';
+            position: absolute;
+            top: -8px; right: -8px;
+            width: 22px; height: 22px;
+            background: #111827;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: bold;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        }
+        .month-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .month-nav button { background: none; border: none; font-size: 16px; cursor: pointer; color: #374151; padding: 2px 8px; border-radius: 4px; font-family: inherit; }
+        .month-nav button:hover { background: #f3f4f6; }
+        .month-nav button:disabled { color: #d1d5db; cursor: default; background: none; }
+        .month-label { font-size: 13px; font-weight: 600; text-transform: capitalize; }
+
+        .days-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+        .day-header { font-size: 10px; color: #9ca3af; text-align: center; padding: 4px 0; font-weight: 600; }
+        .day { border: none; background: transparent; padding: 6px 0; font-size: 11px; cursor: pointer; border-radius: 4px; font-family: inherit; color: inherit; }
+        .day.day-blank { visibility: hidden; cursor: default; }
+        .day:hover:not(:disabled):not(.day-blank) { outline: 2px solid #111827; outline-offset: -2px; }
+        .day:disabled { color: #d1d5db; cursor: default; background: #f9fafb; }
+        .day.selected { outline: 2px solid #111827; outline-offset: -2px; font-weight: bold; }
+
+        /* Day intensity classes (quintile palette) */
+        .day.i-0 { background: #f9fafb; color: #9ca3af; }
+        .day.i-1 { background: #fee0d2; }
+        .day.i-2 { background: #fcbba1; }
+        .day.i-3 { background: #fc9272; }
+        .day.i-4 { background: #ef3b2c; color: white; }
+        .day.i-5 { background: #a50f15; color: white; }
+
+        .legend-mini { display: flex; align-items: center; gap: 5px; margin-top: 8px; font-size: 10px; color: #6b7280; }
+        .legend-mini .sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; }
+
+        .time-section { margin-top: 12px; padding-top: 12px; border-top: 1px solid #f3f4f6; }
+        .time-section label { display: block; margin-bottom: 6px; font-size: 12px; color: #6b7280; font-weight: 500; }
+        .time-section select { width: 100%; padding: 8px 10px; border: 1px solid #d4d4d4; border-radius: 6px; font-size: 13px; font-family: inherit; background: white; box-sizing: border-box; }
+
+        /* Geocoder embedded in controls box */
+        .geocoder-container { margin-bottom: 16px; }
+        .geocoder-container .mapboxgl-ctrl-geocoder {
+            width: 100%;
+            max-width: 100%;
+            min-width: 0;
+            box-shadow: none;
+            border: 1px solid #d4d4d4;
+            border-radius: 6px;
+            font-size: 13px;
+        }
+        .geocoder-container .mapboxgl-ctrl-geocoder--input {
+            height: 36px;
+            padding: 6px 6px 6px 34px;
+            font-family: inherit;
+            font-size: 13px;
+        }
+        .geocoder-container .mapboxgl-ctrl-geocoder--icon-search {
+            top: 9px; left: 8px;
+        }
+
+        /* Hex click popup — Option C (clean key/value) */
+        .mapboxgl-popup-content { padding: 14px 16px; max-width: 260px; border-radius: 10px; }
+        .hex-pop-title {
+            font-family: "SF Mono", Menlo, monospace;
+            font-weight: 700; font-size: 14px;
+            color: #111827; margin: 0 0 10px;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .hex-pop-title .current-badge {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            padding: 2px 8px; font-size: 10px;
+        }
+        .hex-pop-kv { margin: 0 0 12px; }
+        .hex-pop-row {
+            display: flex; justify-content: space-between;
+            align-items: baseline;
+            gap: 24px;
+            padding: 5px 0;
+            border-bottom: 1px solid #f3f4f6;
+        }
+        .hex-pop-row:last-child { border-bottom: none; }
+        .hex-pop-label {
+            font-size: 11px; color: #6b7280;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .hex-pop-value {
+            font-size: 13px; font-weight: 700; color: #111827;
+            font-variant-numeric: tabular-nums;
+        }
+        .hex-pop-value.accent { color: #78350f; }
+        .hex-pop-coord {
+            font-size: 10.5px; color: #9ca3af;
+            font-variant-numeric: tabular-nums;
+            text-align: right;
+            font-weight: 500;
+        }
+        .hex-pop-cta {
+            display: block; width: 100%;
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            color: #78350f;
+            border: 1px solid #fcd34d;
+            padding: 7px 0; border-radius: 6px;
+            font-family: inherit; font-size: 12.5px; font-weight: 700;
+            cursor: pointer; text-align: center; text-decoration: none;
+            box-sizing: border-box;
+        }
+        .hex-pop-cta:hover { filter: brightness(0.97); }
+
+        /* Detail modal */
+        .detail-link { color:#1e88e5; cursor:pointer; text-decoration:underline; font-size:12px; }
+        .detail-link:hover { color:#1565c0; }
+        .modal-overlay { display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:2000; }
+        .modal-overlay.active { display:block; }
+        .detail-modal { display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:white; padding:25px; border-radius:12px; box-shadow:0 4px 20px rgba(0,0,0,0.3); z-index:2001; max-width:90%; max-height:90%; overflow-y:auto; }
+        .detail-modal.active { display:block; }
+        .detail-modal h3 { margin:0 0 15px; color:#333; }
+        .detail-modal p { margin:10px 0; color:#666; }
+        .date-row { margin: 8px 0; border-bottom: 1px solid #f3f4f6; padding: 8px 0; }
+        .date-header { cursor: pointer; font-weight: 600; color: #111827; padding: 6px; border-radius: 6px; transition: background 0.2s; }
+        .date-header:hover { background: #f3f4f6; }
+        .times-list { display: none; margin-left: 24px; margin-top: 8px; font-size: 13px; color: #6b7280; }
+        .times-list div { padding: 4px 0; }
+
+        /* Hex detail modal — Option 2 layout */
+        .hex-title {
+            margin: 0 0 6px;
+            font-size: 18px;
+            font-weight: 700;
+            color: #111827;
+            font-variant-numeric: tabular-nums;
+        }
+        .hex-current-line { margin: 0 0 8px; }
+
+        /* ====== "Partager ces statistiques" button inside hex detail modal ====== */
+        .share-trigger {
+            display: block;
+            width: 100%;
+            margin: 18px 0 14px;
+            padding: 10px 14px;
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            color: #78350f;
+            border: 1px solid #fcd34d;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            letter-spacing: 0.01em;
+            transition: filter 0.15s;
+        }
+        .share-trigger:hover { filter: brightness(0.97); }
+        .share-trigger::before {
+            content: '↗ ';
+            margin-right: 4px;
+        }
+
+        /* ====== Share modal (shows the social-share card) ====== */
+        #shareModal.detail-modal {
+            max-width: 540px;
+            padding: 0;
+            overflow: hidden;
+            z-index: 2010;
+        }
+        #shareModal .share-modal-inner { padding: 20px 22px 22px; }
+        #shareModal .share-hint {
+            font-size: 12.5px; color: #6b7280;
+            margin: 0 0 12px; line-height: 1.5;
+        }
+
+        /* The card itself — matches v5 Option A */
+        .share-card {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+            overflow: hidden;
+            box-sizing: border-box;
+            width: 100%;
+            margin-bottom: 18px;
+        }
+        .share-card .sc-hero {
+            background: linear-gradient(160deg, #fef3c7 0%, #fcd34d 55%, #f59e0b 100%);
+            padding: 20px 22px 16px;
+        }
+        .share-card .sc-eyebrow {
+            font-size: 10.5px; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 0.08em;
+            color: #78350f; margin-bottom: 10px;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .share-card .sc-hex-id {
+            font-family: "SF Mono", Menlo, monospace;
+            background: rgba(120, 53, 15, 0.14);
+            color: #78350f; padding: 2px 8px;
+            border-radius: 5px; font-size: 10.5px;
+            letter-spacing: 0.02em; text-transform: none;
+            font-weight: 700;
+        }
+        .share-card .sc-rank {
+            font-size: 80px; font-weight: 800;
+            color: #78350f; font-variant-numeric: tabular-nums;
+            line-height: 0.95; letter-spacing: -0.03em; margin: 0;
+        }
+        .share-card .sc-rank sup {
+            font-size: 30px; font-weight: 700;
+            margin-left: 4px; vertical-align: 22px;
+        }
+        .share-card .sc-caption {
+            font-size: 13px; color: #422006;
+            margin-top: 6px; line-height: 1.35;
+        }
+        .share-card .sc-caption strong { font-weight: 700; }
+
+        .share-card .sc-stats {
+            display: flex; padding: 14px 22px;
+            gap: 18px; border-bottom: 1px solid #f3f4f6;
+        }
+        .share-card .sc-stats > div { flex: 1; }
+        .share-card .sc-stat-label {
+            font-size: 9.5px; color: #9ca3af;
+            text-transform: uppercase; letter-spacing: 0.06em;
+            margin-bottom: 3px; font-weight: 600;
+        }
+        .share-card .sc-stat-value {
+            font-size: 18px; font-weight: 700; color: #111827;
+            font-variant-numeric: tabular-nums; line-height: 1;
+        }
+
+        .share-card .sc-chart { padding: 14px 22px 14px; }
+        .share-card .sc-chart-title {
+            font-size: 10.5px; font-weight: 600; color: #6b7280;
+            text-transform: uppercase; letter-spacing: 0.06em;
+            margin: 0 0 4px;
+        }
+        .share-card .sc-chart-sub { font-size: 10.5px; color: #9ca3af; margin: 0 0 12px; }
+        .share-card .sc-chart-wrap { display: flex; gap: 6px; }
+        .share-card .sc-yaxis {
+            display: flex; flex-direction: column; justify-content: space-between;
+            font-size: 9.5px; color: #9ca3af; font-variant-numeric: tabular-nums;
+            text-align: right; padding: 2px 0 14px; min-width: 22px;
+        }
+        .share-card .sc-chart-body { flex: 1; min-width: 0; }
+        .share-card .sc-svg { width: 100%; height: 78px; display: block; }
+        .share-card .sc-xaxis {
+            display: flex; font-size: 9.5px; color: #9ca3af; margin-top: 2px;
+        }
+        .share-card .sc-xaxis span { text-align: left; }
+
+        .share-card .sc-footer {
+            background: #f9fafb;
+            padding: 9px 22px;
+            font-size: 10.5px; color: #6b7280;
+            display: flex; justify-content: space-between;
+            align-items: center; border-top: 1px solid #f3f4f6;
+        }
+        .share-card .sc-footer .sc-logo { font-weight: 700; color: #111827; }
+
+        /* Social share buttons */
+        .share-btns {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+        }
+        .share-btns button {
+            display: inline-flex; align-items: center;
+            justify-content: center; gap: 6px;
+            padding: 9px 6px;
+            border: 1px solid #e5e7eb;
+            background: white;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 12px; font-weight: 600;
+            color: #374151;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .share-btns button:hover {
+            border-color: #9ca3af;
+            background: #f9fafb;
+        }
+        .share-btns button svg {
+            width: 16px; height: 16px; flex-shrink: 0;
+        }
+        .share-btns button.download {
+            grid-column: 1 / -1;
+            background: #111827;
+            color: white;
+            border-color: #111827;
+        }
+        .share-btns button.download:hover {
+            background: #374151;
+            border-color: #374151;
+        }
+
+        .back-to-app {
+            display: block;
+            width: 100%;
+            margin-top: 12px;
+            padding: 14px 14px 9px;
+            background: transparent;
+            color: #6b7280;
+            border: none;
+            border-top: 1px solid #f3f4f6;
+            font-family: inherit;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            text-align: center;
+            transition: color 0.15s;
+        }
+        .back-to-app:hover { color: #111827; }
+
+        .hex-hero-stat {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            border: 1px solid #fcd34d;
+            border-radius: 10px;
+            padding: 16px 20px;
+            margin: 20px 0 16px;
+        }
+        .hex-hero-label {
+            font-size: 11px;
+            color: #92400e;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            margin-bottom: 6px;
+        }
+        .hex-hero-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: #78350f;
+            font-variant-numeric: tabular-nums;
+            line-height: 1;
+        }
+        .hex-hero-sub {
+            font-size: 12.5px;
+            color: #92400e;
+            margin-top: 6px;
+        }
+        .hist-section-title {
+            font-size: 11px;
+            font-weight: 600;
+            color: #9ca3af;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin: 18px 0 8px;
+        }
+        .hist-list { max-height: 380px; overflow-y: auto; }
+        .hist-list .date-row { margin: 0; padding: 0; border-bottom: 1px solid #f3f4f6; }
+        .hist-list .date-row:last-child { border-bottom: none; }
+        .hist-list .date-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 9px 4px;
+            font-size: 13px;
+            border-radius: 4px;
+        }
+        .hist-list .hist-row-left .caret { color: #9ca3af; font-size: 10px; margin-right: 6px; }
+        .hist-list .hist-date { font-weight: 600; color: #111827; }
+        .hist-list .hist-row-right {
+            font-size: 12.5px;
+            color: #6b7280;
+            font-variant-numeric: tabular-nums;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .hist-list .hist-row-right strong { color: #111827; font-weight: 700; }
+        .hist-list .hist-bar {
+            display: inline-block;
+            height: 6px;
+            background: #fcd34d;
+            border-radius: 3px;
+        }
+        .hist-list .times-list {
+            display: none;
+            margin-left: 20px;
+            padding: 4px 0 10px;
+            font-size: 12px;
+            color: #6b7280;
+        }
+        .close-modal { position:absolute; top:10px; right:15px; font-size:24px; cursor:pointer; color:#999; }
+        .close-modal:hover { color:#333; }
+
+        .mapboxgl-ctrl-geocoder { max-width: 300px; }
+
+        /* Info button (FAQ trigger) */
+        .info-btn {
+            position: absolute;
+            bottom: 140px;
+            left: 10px;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: white;
+            border: none;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            cursor: pointer;
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 20px;
+            font-style: italic;
+            font-weight: bold;
+            color: #374151;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            transition: transform 0.15s, box-shadow 0.15s;
+            padding: 0;
+        }
+        .info-btn:hover {
+            transform: scale(1.08);
+            box-shadow: 0 6px 16px rgba(0,0,0,0.2);
+        }
+
+        /* FAQ modal content */
+        .faq-modal { max-width: 640px; }
+        .faq-modal h3 { margin: 0 0 16px; color: #111827; font-size: 20px; font-weight: 700; }
+        .faq-back-btn {
+            background: #f3f4f6;
+            color: #374151;
+            border: none;
+            border-radius: 999px;
+            padding: 5px 12px;
+            margin: 0 0 14px;
+            font-family: inherit;
+            font-size: 12.5px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .faq-back-btn:hover { background: #e5e7eb; color: #111827; }
+
+        /* About block — prose intro above the FAQ */
+        .about-block { margin: 0 0 22px; }
+        .about-block p {
+            margin: 0 0 12px;
+            color: #374151;
+            font-size: 13.5px;
+            line-height: 1.6;
+        }
+        .about-block p:last-child { margin-bottom: 0; }
+        .about-block strong { color: #111827; font-weight: 700; }
+        .about-block a {
+            color: #78350f;
+            background: #fef3c7;
+            padding: 1px 6px;
+            border-radius: 4px;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .about-block a:hover { background: #fde68a; }
+
+        /* Small all-caps label above the FAQ items */
+        .faq-section-title {
+            font-size: 11px;
+            font-weight: 600;
+            color: #9ca3af;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin: 0 0 10px;
+        }
+
+        /* Collapsible FAQ items */
+        .faq-modal details.faq-item {
+            border-top: 1px solid #e5e7eb;
+            padding: 10px 0;
+        }
+        .faq-modal details.faq-item:last-of-type { border-bottom: 1px solid #e5e7eb; }
+        .faq-modal details.faq-item summary {
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 13.5px;
+            color: #111827;
+            list-style: none;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 4px 0;
+        }
+        .faq-modal details.faq-item summary::-webkit-details-marker { display: none; }
+        .faq-modal details.faq-item summary::after {
+            content: '+';
+            font-size: 18px;
+            color: #6b7280;
+            font-weight: 400;
+            line-height: 1;
+            margin-left: 10px;
+        }
+        .faq-modal details.faq-item[open] summary::after { content: '–'; }
+        .faq-modal details.faq-item summary:hover { color: #78350f; }
+        .faq-modal details.faq-item p { margin: 8px 0 4px; color: #4b5563; font-size: 13px; line-height: 1.55; }
+        .disclaimer-toggle { margin-top: 18px; }
+        .disclaimer-toggle summary {
+            display: inline-block;
+            padding: 5px 12px;
+            background: #f3f4f6;
+            color: #6b7280;
+            font-size: 11px;
+            font-weight: 500;
+            border-radius: 6px;
+            cursor: pointer;
+            list-style: none;
+            border: 1px solid #e5e7eb;
+            user-select: none;
+        }
+        .disclaimer-toggle summary::-webkit-details-marker { display: none; }
+        .disclaimer-toggle summary:hover { background: #e5e7eb; color: #374151; }
+        .disclaimer-toggle[open] summary { background: #e5e7eb; color: #374151; }
+        .disclaimer-content {
+            margin-top: 12px;
+            color: #6b7280;
+            font-size: 10px;
+            line-height: 1.45;
+        }
+        .disclaimer-content p { margin: 0 0 8px; }
+        .disclaimer-content p:last-child { margin-bottom: 0; }
+        .disclaimer-content a { color: #6b7280; text-decoration: underline; word-break: break-all; }
+
+        /* Welcome modal */
+        .welcome-modal { max-width: 560px; padding: 32px 36px; text-align: center; }
+        .welcome-modal h2 {
+            margin: 0 0 18px;
+            color: #111827;
+            font-size: 24px;
+            font-weight: 700;
+        }
+        .welcome-modal p {
+            margin: 0 0 14px;
+            color: #374151;
+            font-size: 14px;
+            line-height: 1.6;
+            text-align: left;
+        }
+        .welcome-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin: 22px 0 18px;
+        }
+        .btn-secondary, .btn-primary {
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+            border: 2px solid #111827;
+        }
+        .btn-secondary {
+            background: white;
+            color: #111827;
+        }
+        .btn-secondary:hover { background: #f3f4f6; }
+        .btn-primary {
+            background: #111827;
+            color: white;
+        }
+        .btn-primary:hover { background: #374151; border-color: #374151; }
+        .welcome-logos {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 32px;
+            padding-top: 18px;
+            border-top: 1px solid #e5e7eb;
+            flex-wrap: wrap;
+        }
+        .welcome-logos img {
+            max-height: 42px;
+            max-width: 140px;
+            object-fit: contain;
+            opacity: 0.9;
+        }
+        .visitor-pill {
+            display: none;
+            align-items: center;
+            gap: 7px;
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            border: 1px solid #fcd34d;
+            color: #78350f;
+            padding: 6px 14px;
+            border-radius: 999px;
+            font-size: 12.5px;
+            font-weight: 500;
+            margin: 0 auto 16px;
+        }
+        .visitor-pill.visible { display: inline-flex; }
+        .visitor-pill::before {
+            content: '';
+            width: 7px; height: 7px;
+            background: #f59e0b;
+            border-radius: 50%;
+            box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.25);
+            flex-shrink: 0;
+        }
+        .visitor-pill .num {
+            color: #78350f;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+            margin: 0 1px;
+        }
+        .visitor-pill .num sup {
+            font-size: 0.72em;
+            vertical-align: baseline;
+            position: relative;
+            top: -0.45em;
+            margin-left: 1px;
+            font-weight: 700;
+        }
+
+        /* Loading overlay */
+        .map-loader {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255,255,255,0.96);
+            padding: 22px 32px;
+            border-radius: 12px;
+            box-shadow: 0 6px 24px rgba(0,0,0,0.2);
+            z-index: 100;
+            text-align: center;
+            min-width: 200px;
+        }
+        .map-loader.hidden { display: none; }
+        .spinner {
+            width: 32px;
+            height: 32px;
+            border: 3px solid #e5e7eb;
+            border-top-color: #6b7280;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 10px;
+        }
+        .map-loader-text { font-size: 13px; color: #374151; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Inline spinner shown inside the welcome button while data loads */
+        .btn-spinner {
+            display: inline-block;
+            width: 14px; height: 14px;
+            border: 2px solid rgba(255,255,255,0.35);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            vertical-align: -2px;
+            margin-right: 8px;
+        }
+        .btn-primary[disabled] { cursor: wait; opacity: 0.9; }
+
+        /* =========================================================
+           Mobile layout (≤ 640 px) — stacked layout: map (capped) +
+           filters (collapsible) + stats/legend visible below the map.
+           Welcome modal is skipped entirely on mobile so the user lands
+           straight on the page (the map loader still shows progress).
+           Browser layout (>640px) is untouched.
+           ========================================================= */
+        @media (max-width: 640px) {
+            /* Body scrolls so content can stack below the map. */
+            html, body {
+                height: auto !important;
+                min-height: 100vh;
+                overflow-x: hidden;
+                overflow-y: auto;
+            }
+
+            /* Map fills the viewport. UI elements float on top. */
+            html, body { overflow: hidden !important; height: 100vh !important; }
+            #map {
+                position: absolute !important;
+                top: 0 !important;
+                bottom: 0 !important;
+                left: 0 !important;
+                right: 0 !important;
+                width: 100% !important;
+                height: 100% !important;
+            }
+
+            /* Search bar — separate floating card at the very top, always
+               visible (even when "Filtrer par" is collapsed). Bigger and
+               more prominent than the default geocoder. */
+            #geocoderContainer.mobile-floating {
+                position: fixed !important;
+                top: 12px !important;
+                left: 12px !important;
+                right: 12px !important;
+                z-index: 25 !important;
+                background: white;
+                border-radius: 14px;
+                box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+                margin: 0;
+            }
+            #geocoderContainer.mobile-floating .mapboxgl-ctrl-geocoder {
+                width: 100% !important;
+                max-width: none !important;
+                box-shadow: none !important;
+                border: none !important;
+                border-radius: 14px !important;
+                font-size: 15px !important;
+                background: transparent !important;
+            }
+            #geocoderContainer.mobile-floating .mapboxgl-ctrl-geocoder--input {
+                height: 48px !important;
+                padding: 8px 12px 8px 44px !important;
+                font-size: 15px !important;
+                font-weight: 500;
+            }
+            #geocoderContainer.mobile-floating .mapboxgl-ctrl-geocoder--icon-search {
+                top: 14px !important;
+                left: 14px !important;
+                width: 20px !important;
+                height: 20px !important;
+            }
+
+            /* "Filtrer par" — collapsible card, sits BELOW the search bar. */
+            .controls {
+                position: fixed !important;
+                top: 76px !important;
+                left: 12px !important;
+                right: 12px !important;
+                bottom: auto !important;
+                width: auto !important;
+                max-width: none !important;
+                margin: 0 !important;
+                padding: 16px !important;
+                border-radius: 14px !important;
+                box-shadow: 0 4px 16px rgba(0,0,0,0.18) !important;
+                max-height: calc(100vh - 88px) !important;
+                overflow-y: auto !important;
+                z-index: 20 !important;
+            }
+            .controls .panel-title {
+                cursor: pointer;
+                margin: 0 !important;
+                padding: 0 32px 0 0 !important;
+                border-bottom: none !important;
+                position: relative;
+                font-size: 18px !important;
+            }
+            .controls .panel-title::after {
+                content: '−';
+                position: absolute;
+                top: 50%;
+                right: 0;
+                transform: translateY(-50%);
+                width: 26px; height: 26px;
+                border-radius: 50%;
+                background: #f3f4f6;
+                color: #374151;
+                display: flex; align-items: center; justify-content: center;
+                font-size: 18px; line-height: 1; font-weight: 400;
+            }
+            .controls.collapsed .panel-title::after { content: '+'; }
+            .controls:not(.collapsed) .panel-title {
+                margin-bottom: 14px !important;
+                padding-bottom: 12px !important;
+                border-bottom: 3px solid #f3f4f6 !important;
+            }
+            .controls.collapsed > *:not(.panel-title) { display: none !important; }
+
+            /* Hide the big stats panel entirely on mobile. The legend is
+               extracted via JS into #miniLegend (bottom-right of map). */
+            .info { display: none !important; }
+
+            /* Mini legend pinned to bottom-right of the map. */
+            #miniLegend {
+                position: fixed !important;
+                bottom: 12px !important;
+                right: 12px !important;
+                background: white;
+                border-radius: 12px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                padding: 10px 12px;
+                z-index: 15;
+                max-width: calc(100% - 24px);
+            }
+            #miniLegend h4 { display: none; }
+            #miniLegend .scale-labels { font-size: 11px; }
+            #miniLegend .gradient-bar { height: 12px; }
+            #miniLegend .range-labels { font-size: 10px; }
+            #miniLegend .legend-info-wrap { display: none !important; }
+            #miniLegend > div { margin: 0; }
+
+            /* Info "i" button: bottom-left, above the Mapbox nav control. */
+            .info-btn {
+                position: fixed !important;
+                bottom: 16px !important;
+                left: 16px !important;
+                right: auto !important;
+                top: auto !important;
+                z-index: 100;
+            }
+
+            /* Mapbox nav control: bottom-left, just above the info button. */
+            .mapboxgl-ctrl-bottom-left {
+                bottom: 64px !important;
+                left: 0 !important;
+            }
+
+            /* --- Full-screen modals (welcome, detail, share, FAQ) --- */
+            .detail-modal {
+                top: 0; left: 0;
+                transform: none;
+                width: 100vw;
+                height: 100vh;
+                max-width: 100vw;
+                max-height: 100vh;
+                border-radius: 0;
+                padding: 18px 16px 24px;
+                box-sizing: border-box;
+            }
+            /* Welcome modal: full-screen with logos, same as before.
+               IMPORTANT: only set `display: flex` when `.active` is
+               present, otherwise removing the class won't hide it. */
+            .welcome-modal {
+                width: 100vw !important;
+                height: 100vh !important;
+                max-width: 100vw !important;
+                max-height: 100vh !important;
+                border-radius: 0 !important;
+                padding: 26px 22px 24px !important;
+                flex-direction: column;
+            }
+            .welcome-modal.active { display: flex !important; }
+            .welcome-modal:not(.active) { display: none !important; }
+            .welcome-modal .welcome-logos { margin-top: auto; }
+
+            /* Share modal inherits detail-modal but has its own max-width — override */
+            #shareModal.detail-modal {
+                max-width: 100vw;
+                padding: 0;
+            }
+            #shareModal .share-modal-inner {
+                padding: 20px 18px 24px;
+            }
+
+            /* Share buttons: 2-column grid on phones instead of 3 */
+            .share-btns {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            /* Tighter close button positioning on full-screen modals */
+            .close-modal {
+                top: 12px;
+                right: 14px;
+                z-index: 50;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+
+    <!-- Mobile-only mini legend (bottom-right). Populated by updateLegend(). -->
+    <div id="miniLegend" style="display:none;"></div>
+
+    <div id="mapLoader" class="map-loader">
+        <div class="spinner"></div>
+        <div class="map-loader-text">Chargement des données...</div>
+    </div>
+
+    <div class="info">
+        <h4 class="panel-title">Statistiques</h4>
+        <div class="stats-grid">
+            <div class="stats-card stats-card-current">
+                <div class="card-label">Pannes en cours &middot; <span id="lastReading">chargement&hellip;</span></div>
+                <div class="card-value" id="currentCount">&mdash;</div>
+            </div>
+            <div class="stats-card">
+                <div class="card-label">Occurrences depuis le 1<sup>er</sup>&nbsp;janvier&nbsp;2026</div>
+                <div class="card-value" id="totalOccurrences">&mdash;</div>
+            </div>
+            <div class="stats-card">
+                <div class="card-label">Hexagones impactés</div>
+                <div class="card-value" id="totalHexCount">&mdash;</div>
+            </div>
+        </div>
+        <div id="hourlyChartBlock" class="hourly-chart" style="display:none;">
+            <div class="hourly-chart-title">Occurrences aujourd'hui</div>
+            <div class="hourly-chart-sub" id="hourlyChartSub">&mdash;</div>
+            <div class="hourly-chart-wrap">
+                <div class="hourly-yaxis" id="hourlyYAxis">
+                    <span>&mdash;</span>
+                    <span></span>
+                    <span></span>
+                    <span>0</span>
+                </div>
+                <div class="hourly-chart-body">
+                    <svg id="hourlyChartSvg" class="hourly-chart-svg" viewBox="0 0 240 100" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <linearGradient id="hourlyYellowGrad" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stop-color="#fcd34d" stop-opacity="0.85"/>
+                                <stop offset="100%" stop-color="#fef3c7" stop-opacity="0.35"/>
+                            </linearGradient>
+                        </defs>
+                        <line x1="0" y1="99" x2="240" y2="99" stroke="#e5e7eb" stroke-width="0.5"/>
+                        <line id="hourlyNowLine" x1="0" y1="0" x2="0" y2="100" stroke="#d1d5db" stroke-width="0.5" stroke-dasharray="2 2" style="display:none;"/>
+                        <path id="hourlyArea" fill="url(#hourlyYellowGrad)" opacity="0.85" d=""/>
+                        <path id="hourlyLine" fill="none" stroke="#d97706" stroke-width="1.2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke" d=""/>
+                        <circle id="hourlyNowDot" cx="0" cy="0" r="2.4" fill="#d97706" style="display:none;"/>
+                    </svg>
+                    <div class="hourly-axis-labels">
+                        <span>0h</span>
+                        <span>6h</span>
+                        <span>12h</span>
+                        <span>18h</span>
+                        <span>24h</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div style="margin-top: 12px; padding-top: 10px; border-top: 1px solid #e5e7eb; font-size:11px; color:#9ca3af; line-height:1.6;">
+            <div>Généré le <span id="genDate">&mdash;</span></div>
+            <div>Hexagones d'1&nbsp;km &middot; <span id="daysCount">&mdash;</span>&nbsp;jours analysés</div>
+            <div><strong>1 occurrence = 1 panne de 15 minutes</strong></div>
+        </div>
+
+        <div class="legend" id="legend">
+            <h4 class="panel-title">Intensité des pannes</h4>
+            <div id="legendItems"><div style="font-size:12px;color:#999;">Chargement...</div></div>
+            <div id="legendFooter" style="font-size:11px;color:#666;margin-top:14px;line-height:1.4;"></div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <h4 class="panel-title">Affichage</h4>
+        <div id="geocoderContainer" class="geocoder-container"></div>
+
+        <button class="summary-btn" id="hideBtn" onclick="setView('none')">
+            <strong>Masquer les hexagones</strong>
+            <small>Carte de base seulement</small>
+        </button>
+
+        <button class="summary-btn active" id="summaryBtn" onclick="setView('all')">
+            <strong>Résumé complet</strong>
+            <small>Depuis le 1er janvier 2026</small>
+        </button>
+
+        <button class="current-btn" id="currentBtn" onclick="setView('current')">
+            <strong>Pannes en cours</strong>
+            <small>Lecture la plus récente</small>
+        </button>
+
+        <div class="or-divider">Choisir une journée</div>
+
+        <div class="calendar" id="calendarBox">
+            <div class="month-nav">
+                <button id="prevMonth" onclick="navigateMonth(-1)" aria-label="Mois précédent">‹</button>
+                <span class="month-label" id="monthLabel">—</span>
+                <button id="nextMonth" onclick="navigateMonth(1)" aria-label="Mois suivant">›</button>
+            </div>
+            <div class="days-grid" id="daysGrid">
+                <div class="day-header">L</div>
+                <div class="day-header">M</div>
+                <div class="day-header">M</div>
+                <div class="day-header">J</div>
+                <div class="day-header">V</div>
+                <div class="day-header">S</div>
+                <div class="day-header">D</div>
+            </div>
+            <div class="legend-mini">
+                <span class="sw i-0"></span>
+                <span class="sw i-1"></span>
+                <span class="sw i-2"></span>
+                <span class="sw i-3"></span>
+                <span class="sw i-4"></span>
+                <span class="sw i-5"></span>
+            </div>
+        </div>
+
+        <div class="time-section" id="timeSection" style="display: none;">
+            <label>Heure :</label>
+            <select id="hourSelect" onchange="onHourChange()">
+                <option value="all">Journée complète</option>
+                <option value="0">0h00 – 0h59</option>
+                <option value="1">1h00 – 1h59</option>
+                <option value="2">2h00 – 2h59</option>
+                <option value="3">3h00 – 3h59</option>
+                <option value="4">4h00 – 4h59</option>
+                <option value="5">5h00 – 5h59</option>
+                <option value="6">6h00 – 6h59</option>
+                <option value="7">7h00 – 7h59</option>
+                <option value="8">8h00 – 8h59</option>
+                <option value="9">9h00 – 9h59</option>
+                <option value="10">10h00 – 10h59</option>
+                <option value="11">11h00 – 11h59</option>
+                <option value="12">12h00 – 12h59</option>
+                <option value="13">13h00 – 13h59</option>
+                <option value="14">14h00 – 14h59</option>
+                <option value="15">15h00 – 15h59</option>
+                <option value="16">16h00 – 16h59</option>
+                <option value="17">17h00 – 17h59</option>
+                <option value="18">18h00 – 18h59</option>
+                <option value="19">19h00 – 19h59</option>
+                <option value="20">20h00 – 20h59</option>
+                <option value="21">21h00 – 21h59</option>
+                <option value="22">22h00 – 22h59</option>
+                <option value="23">23h00 – 23h59</option>
+            </select>
+        </div>
+    </div>
+
+    <button class="info-btn" onclick="openFaqModal()" title="À propos de la carte" aria-label="Informations">i</button>
+
+    <div id="modalOverlay" class="modal-overlay active"></div>
+    <div id="welcomeModal" class="detail-modal welcome-modal active">
+        <span class="close-modal" onclick="closeWelcomeModal()">×</span>
+        <h2>Où sont les pannes?</h2>
+        <p>Cette plateforme vous permet d'explorer la distribution spatiale et temporelle des pannes d'électricité au Québec depuis le 1<sup>er</sup> janvier 2026.</p>
+        <p>Les données sont extraites du portail Info-Pannes d'Hydro-Québec toutes les 15 minutes et géolocalisées sur une grille hexagonale de 1&nbsp;km². Chaque occurrence de panne représente une <strong>interruption de 15 minutes</strong>: plus le compteur est élevé, plus les résidents de votre secteur ont été privés de courant.</p>
+        <p>L'objectif de cet outil est d'améliorer la transparence et l'accessibilité des données relatives aux interruptions de service électrique au Québec.</p>
+        <div class="welcome-actions">
+            <button class="btn-secondary" onclick="openFaqFromWelcome()">À propos de ce projet</button>
+            <button class="btn-primary" id="welcomeStartBtn" onclick="startFromWelcome()">Accéder à l'outil</button>
+        </div>
+        <div id="visitorPill" class="visitor-pill">
+            Vous êtes le <span class="num"><span id="visitorCount">&mdash;</span><sup>e</sup></span> visiteur depuis le lancement
+        </div>
+        <div class="welcome-logos">
+            <img src="logos/ivado-rgb_logo-full-degrade.png" alt="IVADO">
+            <img src="logos/udem-logo.svg" alt="Université de Montréal">
+        </div>
+    </div>
+    <div id="detailModal" class="detail-modal">
+        <span class="close-modal" onclick="closeDetailModal()">×</span>
+        <div id="modalContent"></div>
+    </div>
+    <div id="shareModal" class="detail-modal">
+        <span class="close-modal" onclick="closeShareModal()">×</span>
+        <div class="share-modal-inner">
+            <p class="share-hint">Voici un résumé partageable des pannes ayant impacté votre secteur.</p>
+            <div id="shareCard" class="share-card"></div>
+            <div class="share-btns">
+                <button onclick="shareInstagram()" title="Partager sur Instagram"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg> Instagram</button>
+                <button onclick="shareVia('bluesky')" title="Partager sur Bluesky"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M5.8 3.4C8.2 5.2 10.8 8.8 12 10.7c1.2-1.9 3.8-5.5 6.2-7.3 1.7-1.3 4.5-2.3 4.5 0.9 0 0.6-0.4 5.2-0.6 5.9-0.6 2.5-3.1 3.1-5.3 2.7 3.9 0.7 4.9 2.9 2.7 5.1-4 4.2-5.8-1-6.3-2.3-0.1-0.2-0.1-0.4-0.2-0.4-0.1 0-0.1 0.1-0.2 0.4-0.5 1.3-2.3 6.5-6.3 2.3-2.2-2.2-1.2-4.4 2.7-5.1-2.2 0.4-4.7-0.2-5.3-2.7-0.2-0.7-0.6-5.3-0.6-5.9 0-3.2 2.8-2.2 4.5-0.9z"/></svg> Bluesky</button>
+                <button onclick="shareVia('facebook')" title="Partager sur Facebook"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.07C24 5.41 18.63 0 12 0S0 5.4 0 12.07C0 18.1 4.39 23.1 10.13 24v-8.44H7.08v-3.49h3.04V9.41c0-3.02 1.79-4.7 4.54-4.7 1.31 0 2.68.24 2.68.24v2.97h-1.5c-1.49 0-1.96.93-1.96 1.89v2.26h3.32l-.53 3.5h-2.79V24C19.61 23.1 24 18.1 24 12.07"/></svg> Facebook</button>
+                <button onclick="shareVia('whatsapp')" title="Partager sur WhatsApp"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.5 14.4c-.3-.15-1.77-.87-2.04-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.17-.17.2-.35.22-.65.07-.3-.15-1.26-.46-2.4-1.48-.89-.79-1.49-1.77-1.66-2.07-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52s-.67-1.62-.92-2.22c-.24-.58-.49-.5-.67-.51H7.9c-.17 0-.45.06-.69.3s-.92.9-.92 2.19c0 1.3.94 2.55 1.07 2.72.13.17 1.85 2.83 4.48 3.97.63.27 1.12.43 1.5.55.63.2 1.2.17 1.65.1.5-.07 1.55-.63 1.77-1.25.22-.61.22-1.13.15-1.25-.07-.12-.25-.17-.55-.32zM12.04 21.78h-.01a9.87 9.87 0 0 1-5.03-1.38l-.36-.21-3.74.98 1-3.65-.24-.37a9.86 9.86 0 0 1-1.51-5.26c0-5.45 4.43-9.88 9.89-9.88 2.64 0 5.12 1.03 6.99 2.9a9.82 9.82 0 0 1 2.89 6.99c0 5.45-4.44 9.88-9.88 9.88zm8.41-18.29A11.8 11.8 0 0 0 12.04.21C5.48.21.13 5.56.13 12.12c0 2.1.55 4.14 1.59 5.95L.03 24l6.08-1.59a11.87 11.87 0 0 0 5.93 1.5h.01c6.56 0 11.9-5.35 11.9-11.9 0-3.18-1.23-6.17-3.48-8.42z"/></svg> WhatsApp</button>
+                <button onclick="shareVia('email')" title="Partager par courriel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 5L2 7"/></svg> Courriel</button>
+                <button onclick="shareVia('copy')" title="Copier le lien"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> <span id="copyLinkLabel">Copier</span></button>
+                <button class="download" onclick="downloadShareCard()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Télécharger l'image</button>
+            </div>
+            <button class="back-to-app" onclick="closeShareModal();">&larr; Retour au sommaire</button>
+        </div>
+    </div>
+    <div id="faqModal" class="detail-modal faq-modal">
+        <span class="close-modal" onclick="closeFaqModal()">×</span>
+        <button id="faqBackBtn" class="faq-back-btn" onclick="closeFaqModal()" style="display:none;">&larr;&nbsp;Retour</button>
+        <h3>À propos de ce projet</h3>
+
+        <div class="about-block">
+            <p>Ce projet est dirigé par <strong>Evelyne Brie</strong>, professeure adjointe en science politique affiliée à IVADO à l'Université de Montréal. Vous pouvez la contacter par courriel au <a href="mailto:evelyne.brie@umontreal.ca">evelyne.brie@umontreal.ca</a>.</p>
+            <p>Ses recherches portent sur la cohésion sociale, les inégalités structurelles et la prise de décision en matière de politique urbaine. «&nbsp;Où sont les pannes?&nbsp;» fait partie de ce travail et vise à mettre en lumière les disparités en matière de coupures électriques au Québec.</p>
+        </div>
+
+        <div class="faq-section-title">Questions fréquentes</div>
+
+        <details class="faq-item" open>
+            <summary>D'où proviennent ces données?</summary>
+            <p>Les données sont collectées à chaque 15 minutes du site Info-Pannes d'Hydro-Québec. Elles sont ensuite converties sur une grille hexagonale pour permettre de calculer les pannes cumulatives sur des aires géographiques d'un kilomètre.</p>
+        </details>
+
+        <details class="faq-item">
+            <summary>Qu'est-ce qui constitue une occurrence de panne?</summary>
+            <p>Une occurrence de panne est une lecture de panne, mesurée à chaque 15 minutes, via le site d'Info-Pannes d'Hydro-Québec. Par exemple, pour une coupure électrique d'une durée totale d'une heure, 4 occurrences sont comptabilisées. Cette technique permet de comparer la durée totale des pannes, plutôt que de comptabiliser des coupures de courant de durées différentes.</p>
+        </details>
+
+        <details class="faq-item">
+            <summary>Une panne est indiquée dans l'hexagone où je réside, mais mon logement n'est pas affecté. S'agit-il d'une erreur?</summary>
+            <p>Non. Les hexagones indiquent l'occurrence d'une panne à n'importe quel endroit au sein de cet hexagone. Autrement dit, si vos voisins sont affectés par une panne sans que vous le soyez, l'historique des pannes indiquera une occurrence sans que vous ayez été affecté.</p>
+        </details>
+
+        <details class="faq-item">
+            <summary>Dans quel but cette carte a-t-elle été créée?</summary>
+            <p>L'objectif de cette carte est de promouvoir la transparence de l'information au sujet des pannes de courant au Québec. L'outil actuel d'Info-Pannes d'Hydro-Québec permet seulement de visualiser les pannes actuelles ou planifiées, sans partager d'information sur les pannes résolues.</p>
+        </details>
+
+        <details class="disclaimer-toggle">
+            <summary>Mentions légales</summary>
+            <div class="disclaimer-content">
+                <p>Il est expressément convenu que la présence du nom et/ou du logo de l'Université de Montréal sur l'Outil ne constitue en aucun cas une approbation, une validation, ni une caution de l'Université à l'égard de l'Outil, de son contenu, ni des données ou résultats qui y sont présentés.</p>
+                <p>Les données de pannes et d'interruptions de service sont fournies à partir de sources publiques d'Hydro-Québec. Cet outil n'est pas affilié à Hydro-Québec. La présence du nom ou de données d'Hydro-Québec ne constitue en aucun cas une approbation, une validation ou une caution de la part d'Hydro-Québec à l'égard du présent outil, de son contenu ou de ses interprétations. Les informations sont fournies à titre indicatif seulement et peuvent comporter des délais de mise à jour, des erreurs ou des omissions. Elles ne doivent pas être utilisées comme seule source pour des décisions critiques. Les données originales sont fournies sous licence Creative Commons Attribution - Utilisation non commerciale 4.0 International (CC BY-NC 4.0) disponible à l'adresse suivante&nbsp;: <a href="https://creativecommons.org/licences/by-nc/4.0/legalcode.fr" target="_blank" rel="noopener">https://creativecommons.org/licences/by-nc/4.0/legalcode.fr</a></p>
+            </div>
+        </details>
+    </div>
+
+    <script>
+        mapboxgl.accessToken = 'pk.eyJ1IjoiZXZlbHluZWJyaWUiLCJhIjoiY21wN2IwM2doMDA4MDJxb29reGY1eWRhcCJ9.Y1N8BszMzwaHjoU0OpxZVg';
+
+        // Mobile only: force pixelRatio to 1 (vs default 2-3 on retina)
+        // so Mapbox renders ~75 % fewer pixels. This drastically reduces
+        // GPU/memory pressure when the full-screen map paints 114k hexes,
+        // and prevents the OOM crash. Browser uses native pixel ratio.
+        var __isMobileForMap = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+        var map = new mapboxgl.Map({
+            container: 'map',
+            style: 'mapbox://styles/mapbox/outdoors-v12',
+            center: [-71.2, 46.8],
+            zoom: 7.5,
+            pixelRatio: __isMobileForMap ? 1 : (window.devicePixelRatio || 1)
+        });
+
+        var allData = { daily: {}, total: null, current: null };
+        var geocoder = null;
+        var currentPopup = null;
+        var currentFeatures = null;
+        var quartileBreaks = null;
+        var QUARTILE_COLORS = ['#fee0d2', '#fcbba1', '#fc9272', '#ef3b2c', '#a50f15'];
+
+        // Mobile path: same data, same UI, but loaded with a memory-safe
+        // strategy so iOS Safari / Chrome don't OOM on the ~110 MB of
+        // regional GeoJSON + ~145 MB of dailies. Desktop is unchanged.
+        var isMobileDevice = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+        // Files over GitHub's size limit are deployed as <name>.partNN.geojson
+        // (scripts/split_large_geojson.py), and geojson_parts.json maps each
+        // original path to its parts. fetchGeoJSON() hides this: it resolves
+        // to the same FeatureCollection as the unsplit file, or null if the
+        // file is missing. Every .geojson fetch should go through it.
+        var geojsonPartsPromise = null;
+        function fetchGeoJSON(url) {
+            if (!geojsonPartsPromise) {
+                geojsonPartsPromise = fetch('geojson_parts.json', { cache: 'no-cache' })
+                    .then(function(r) { return r.ok ? r.json() : null; })
+                    .then(function(m) { return (m && m.files) || {}; })
+                    .catch(function() { return {}; });
+            }
+            return geojsonPartsPromise.then(function(files) {
+                var parts = files[url.split('?')[0]];
+                if (!parts) {
+                    return fetch(url).then(function(r) { return r.ok ? r.json() : null; });
+                }
+                // ?v= ties each part to this manifest, so a browser-cached
+                // part from an earlier deploy can't be mixed in.
+                return Promise.all(parts.map(function(p) {
+                    return fetch(p.path + '?v=' + p.sha1).then(function(r) {
+                        if (!r.ok) throw new Error('Missing ' + p.path);
+                        return r.json();
+                    });
+                })).then(function(chunks) {
+                    var merged = chunks[0];
+                    for (var i = 1; i < chunks.length; i++) {
+                        merged.features = merged.features.concat(chunks[i].features);
+                    }
+                    return merged;
+                });
+            });
+        }
+
+        // Mobile only: single-slot cache for the FULL regional file. Used
+        // when the user clicks a hex and we need its `all_datetimes` (not
+        // present in the slim file used for the map). When a hex from a
+        // different region is clicked, the previous region's full data is
+        // released so peak memory stays bounded to ~1 region (≤ 60 MB).
+        var loadedFullRegion = null;
+        var loadedFullData = null;
+        var REGION_BANDS = [
+            { name: 'west',         max: -75 },
+            { name: 'central_west', max: -72 },
+            { name: 'central',      max: -69 },
+            { name: 'central_east', max: -66 },
+            { name: 'east',         max: -63 },
+            { name: 'far_east',     max: Infinity }
+        ];
+        function regionForLon(lon) {
+            for (var i = 0; i < REGION_BANDS.length; i++) {
+                if (lon < REGION_BANDS[i].max) return REGION_BANDS[i].name;
+            }
+            return 'far_east';
+        }
+        // Returns a Promise<Feature|null> for the full version of `hexId`,
+        // fetching that hex's region's full GeoJSON if not already cached.
+        function ensureFullFeature(hexId, centroidLon) {
+            var region = regionForLon(centroidLon);
+            return new Promise(function(resolve) {
+                function lookup(data) {
+                    if (!data || !data.features) { resolve(null); return; }
+                    var match = null;
+                    for (var i = 0; i < data.features.length; i++) {
+                        if (data.features[i].properties.hex_id === hexId) {
+                            match = data.features[i]; break;
+                        }
+                    }
+                    resolve(match);
+                }
+                if (loadedFullRegion === region && loadedFullData) {
+                    lookup(loadedFullData); return;
+                }
+                // Drop the previous region first so the new one's parse
+                // doesn't transiently hold both.
+                loadedFullRegion = null;
+                loadedFullData = null;
+                fetchGeoJSON('total/total_exposure_' + region + '.geojson')
+                    .then(function(data) {
+                        if (data) {
+                            loadedFullRegion = region;
+                            loadedFullData = data;
+                        }
+                        lookup(data);
+                    })
+                    .catch(function() { resolve(null); });
+            });
+        }
+
+        function hideLoader() {
+            var el = document.getElementById('mapLoader');
+            if (el) el.classList.add('hidden');
+        }
+        function setLoaderText(t) {
+            var el = document.querySelector('.map-loader-text');
+            if (el) el.textContent = t;
+        }
+
+        function percentile(sortedVals, p) {
+            var idx = (sortedVals.length - 1) * p;
+            var lo = Math.floor(idx);
+            var hi = Math.ceil(idx);
+            if (lo === hi) return sortedVals[lo];
+            return sortedVals[lo] + (sortedVals[hi] - sortedVals[lo]) * (idx - lo);
+        }
+
+        function computeQuartiles(features) {
+            var values = [];
+            for (var i = 0; i < features.length; i++) {
+                var v = features[i].properties.total_occurrences;
+                if (typeof v === 'number' && !isNaN(v)) values.push(v);
+            }
+            values.sort(function(a, b) { return a - b; });
+            if (values.length === 0) return null;
+            return {
+                min: values[0],
+                q1: Math.round(percentile(values, 0.20)),
+                q2: Math.round(percentile(values, 0.40)),
+                q3: Math.round(percentile(values, 0.60)),
+                q4: Math.round(percentile(values, 0.80)),
+                max: values[values.length - 1]
+            };
+        }
+
+        function getColor(d) {
+            if (!quartileBreaks) return '#fcbba1';
+            if (d <= quartileBreaks.q1) return QUARTILE_COLORS[0];
+            if (d <= quartileBreaks.q2) return QUARTILE_COLORS[1];
+            if (d <= quartileBreaks.q3) return QUARTILE_COLORS[2];
+            if (d <= quartileBreaks.q4) return QUARTILE_COLORS[3];
+            return QUARTILE_COLORS[4];
+        }
+
+        function updateLegend() {
+            var container = document.getElementById('legendItems');
+            var footer = document.getElementById('legendFooter');
+            if (!container) return;
+            if (!quartileBreaks) {
+                container.innerHTML = '<div style="font-size:12px;color:#999;">Chargement...</div>';
+                if (footer) footer.innerHTML = '';
+                return;
+            }
+            var q = quartileBreaks;
+            // Option B legend: horizontal gradient scale with endpoint labels
+            // above and the numeric min/max range below.
+            var barHtml = '';
+            for (var i = 0; i < 5; i++) {
+                barHtml += '<div style="background:' + QUARTILE_COLORS[i] + ';"></div>';
+            }
+            var minLabel = q.min + (q.min === 1 ? ' occurrence' : ' occurrences');
+            container.innerHTML =
+                '<div class="scale-labels"><span>Faible</span><span>Élevée</span></div>' +
+                '<div class="gradient-bar">' + barHtml + '</div>' +
+                '<div class="range-labels"><span>' + minLabel + '</span><span>' + (q.q4 + 1) + '+</span></div>';
+
+            if (footer) {
+                var p1 = "Les hexagones sont classés en 5 niveaux d'intensité par quintiles, chacun représentant 20&nbsp;% du total. Les seuils, exprimés en nombre d'occurrences de 15 minutes, sont les suivants&nbsp;: impact faible (" +
+                    q.min + " à " + q.q1 + "), puis des paliers intermédiaires à " +
+                    q.q2 + " et " + q.q3 + " occurrences, jusqu'à l'impact élevé (" +
+                    (q.q4 + 1) + " et plus).";
+                var p2 = "Ces valeurs sont mises à jour automatiquement pour refléter une proportion égale d'observations dans chaque niveau d'impact.";
+                footer.innerHTML =
+                    '<div class="legend-info-wrap">' +
+                    '<div id="legendInfoPopover" class="legend-info-popover">' +
+                        '<p>' + p1 + '</p>' +
+                        '<p>' + p2 + '</p>' +
+                    '</div>' +
+                    '<p class="legend-detail-text">Chaque niveau regroupe <strong>20%</strong> des hexagones, du quintile inférieur (faible) au supérieur (élevé).</p>' +
+                    '<button type="button" class="legend-info-btn" aria-label="Comment sont calculés les seuils" onclick="toggleLegendInfo(event)">i</button>' +
+                    '</div>';
+            }
+
+            // Mobile: also paint the floating mini legend at the bottom-right.
+            var mini = document.getElementById('miniLegend');
+            if (mini && isMobileDevice) {
+                mini.style.display = 'block';
+                mini.innerHTML =
+                    '<div class="scale-labels"><span>Faible intensité</span><span>Intensité élevée</span></div>' +
+                    '<div class="gradient-bar">' + barHtml + '</div>' +
+                    '<div class="range-labels"><span>' + minLabel + '</span><span>' + (q.q4 + 1) + '+</span></div>';
+            }
+        }
+
+        function updateStatsPanel() {
+            if (!allData.total) return;
+            var features = allData.total.features;
+
+            // Total occurrences
+            var totalOcc = 0;
+            features.forEach(function(f) {
+                var v = f.properties.total_occurrences;
+                if (typeof v === 'number' && !isNaN(v)) totalOcc += v;
+            });
+            var totalOccEl = document.getElementById('totalOccurrences');
+            if (totalOccEl) totalOccEl.textContent = totalOcc.toLocaleString('fr-CA');
+            var welcomeCountEl = document.getElementById('welcomeCount');
+            if (welcomeCountEl) welcomeCountEl.textContent = totalOcc.toLocaleString('fr-CA');
+
+            // Hex count
+            var hexCountEl = document.getElementById('totalHexCount');
+            if (hexCountEl) hexCountEl.textContent = features.length.toLocaleString('fr-CA');
+
+            // Latest datetime across all hexes (rendered in the Pannes en cours card label)
+            var maxDt = '';
+            features.forEach(function(f) {
+                var s = f.properties.all_datetimes;
+                if (!s) return;
+                var parts = s.split(',');
+                for (var i = 0; i < parts.length; i++) {
+                    var t = parts[i].trim();
+                    if (t > maxDt) maxDt = t;
+                }
+            });
+            var lastReadingEl = document.getElementById('lastReading');
+            if (lastReadingEl) lastReadingEl.textContent = formatFrDateTime(maxDt) || '—';
+
+            // Days count
+            var dates = new Set();
+            features.forEach(function(f) {
+                if (!f.properties.all_datetimes) return;
+                f.properties.all_datetimes.split(',').forEach(function(dt) {
+                    var d = dt.trim().split(' ')[0];
+                    if (d) dates.add(d);
+                });
+            });
+            var daysCountEl = document.getElementById('daysCount');
+            if (daysCountEl) daysCountEl.textContent = dates.size;
+
+            // Generated date (now)
+            var now = new Date();
+            var pad = function(n) { return n < 10 ? '0' + n : n; };
+            var genDateEl = document.getElementById('genDate');
+            if (genDateEl) {
+                // Reuse formatFrDateTime by feeding it an ISO-like string.
+                var isoNow = now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' +
+                    pad(now.getDate()) + ' ' + pad(now.getHours()) + ':' + pad(now.getMinutes());
+                genDateEl.textContent = formatFrDateTime(isoNow);
+            }
+        }
+
+        var FR_MONTHS = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+        function formatFrDateTime(s) {
+            if (!s) return '';
+            var m = s.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);
+            if (!m) return s;
+            var day = parseInt(m[3], 10);
+            var month = FR_MONTHS[parseInt(m[2], 10) - 1];
+            var year = m[1];
+            return day + ' ' + month + ' ' + year + ' à ' + m[4] + 'h' + m[5];
+        }
+        function formatFrDate(s) {
+            if (!s) return s;
+            var m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+            if (!m) return s;
+            var day = parseInt(m[3], 10);
+            var month = FR_MONTHS[parseInt(m[2], 10) - 1];
+            var year = m[1];
+            var dayStr = day === 1 ? '1<sup>er</sup>' : day.toString();
+            return dayStr + ' ' + month + ' ' + year;
+        }
+
+        function updateCurrentBadge() {
+            var el = document.getElementById('currentCount');
+            if (!el) return;
+            var count = (allData.current && allData.current.features) ? allData.current.features.length : 0;
+            el.textContent = count.toLocaleString('fr-CA') + ' hexagone' + (count === 1 ? '' : 's');
+        }
+
+        // Parallel load: regional totals + current outages. Map shows as soon as totals ready.
+        var coreDataPromise = null;
+        async function loadCoreData() {
+            // Mapbox can fire 'load' twice on some mobile browsers; guard
+            // against re-entry so we don't pull 220 MB of GeoJSON twice.
+            if (coreDataPromise) return coreDataPromise;
+            coreDataPromise = (async function() {
+            setLoaderText('Chargement des données...');
+            var regions = ['west', 'central_west', 'central', 'central_east', 'east', 'far_east'];
+
+            // Mobile fetches the SLIM regional files (~62 MB total instead
+            // of 145 MB), sequentially so peak memory stays bounded by
+            // one in-flight parse. Slim drops `all_datetimes`, which is
+            // only needed for the click-through history modal — that's
+            // lazy-loaded per-region via ensureRegionLoaded().
+            // Browser keeps the parallel fetch of the full files.
+            var loadedRegions = 0;
+            if (isMobileDevice) {
+                setLoaderText('Chargement des données… 0 %');
+            }
+            var totalsPromise;
+            if (isMobileDevice) {
+                totalsPromise = (async function() {
+                    var out = [];
+                    for (var i = 0; i < regions.length; i++) {
+                        var slimUrl = 'total/total_exposure_' + regions[i] + '_slim.geojson';
+                        var fullUrl = 'total/total_exposure_' + regions[i] + '.geojson';
+                        var data = await fetchGeoJSON(slimUrl);
+                        if (!data) {
+                            // Slim file not deployed yet — fall back to full.
+                            data = await fetchGeoJSON(fullUrl);
+                        }
+                        out.push(data);
+                        loadedRegions++;
+                        var pct = Math.round((loadedRegions / regions.length) * 100);
+                        setLoaderText('Chargement des données… ' + pct + ' %');
+                        await new Promise(function(res) { setTimeout(res, 0); });
+                    }
+                    return out;
+                })();
+            } else {
+                totalsPromise = Promise.all(
+                    regions.map(function(region) {
+                        return fetchGeoJSON('total/total_exposure_' + region + '.geojson');
+                    })
+                );
+            }
+            var currentPromise = fetchGeoJSON('current.geojson').then(function(data) {
+                return data || { type: 'FeatureCollection', features: [] };
+            }).catch(function() { return { type: 'FeatureCollection', features: [] }; });
+
+            var results = await Promise.all([totalsPromise, currentPromise]);
+            var regionalData = results[0];
+            allData.current = results[1];
+
+            allData.total = {
+                type: 'FeatureCollection',
+                features: regionalData.flatMap(function(d) { return (d && d.features) || []; })
+            };
+            console.log('Loaded ' + allData.total.features.length + ' hexagons from ' + regions.length + ' regions');
+
+            quartileBreaks = computeQuartiles(allData.total.features);
+            updateLegend();
+            updateStatsPanel();
+            updateCurrentBadge();
+
+            // Gather all available dates. Slim files (mobile) have a
+            // `dates` field with just the dates; full files (browser) have
+            // `all_datetimes` with full timestamps. Either works.
+            var dateSet = new Set();
+            allData.total.features.forEach(function(f) {
+                var p = f.properties;
+                if (p.all_datetimes) {
+                    p.all_datetimes.split(',').forEach(function(dt) {
+                        var d = dt.trim().split(' ')[0];
+                        if (d) dateSet.add(d);
+                    });
+                } else if (p.dates) {
+                    p.dates.split(',').forEach(function(d) {
+                        d = d.trim();
+                        if (d) dateSet.add(d);
+                    });
+                }
+            });
+            availableDates = Array.from(dateSet).sort();
+
+            // Initialize calendar on the most recent month with data
+            if (availableDates.length > 0) {
+                var last = availableDates[availableDates.length - 1];
+                var parts = last.split('-');
+                calendarMonth = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, 1);
+                computeDayIntensities();
+                renderCalendar();
+
+                // Clicking anywhere on the calendar box (padding, grid gaps, legend)
+                // without hitting a specific day selects today's data (latest date).
+                var calBox = document.getElementById('calendarBox');
+                if (calBox && !calBox.dataset.blankClickBound) {
+                    calBox.dataset.blankClickBound = '1';
+                    calBox.addEventListener('click', function(e) {
+                        if (e.target.closest('button')) return;
+                        if (availableDates.length === 0) return;
+                        setView('day', availableDates[availableDates.length - 1]);
+                    });
+                }
+            }
+
+            return availableDates;
+            })();
+            return coreDataPromise;
+        }
+
+        // Parallel load of per-day files (in background, non-blocking).
+        async function loadDailyDataInBackground(dates) {
+            // The map is already up at this point — these files only feed
+            // the hourly chart and the calendar's per-day intensity colors,
+            // so they load silently.
+            var sortedDates = dates.slice().sort();
+            var todayDate = sortedDates[sortedDates.length - 1];
+            if (todayDate) {
+                try {
+                    var data = await fetchGeoJSON('daily/daily_' + todayDate + '.geojson');
+                    if (data) {
+                        allData.daily[todayDate] = data;
+                        renderHourlyChart(todayDate);
+                    }
+                } catch (e) { /* silent */ }
+            }
+
+            // On mobile, stop here. Pulling 76 parallel daily fetches
+            // (~145 MB in flight) on top of the just-parsed regional data
+            // OOMs the tab on phones. Past dates are fetched on demand via
+            // ensureDailyLoaded() when the user picks them in the calendar.
+            if (isMobileDevice) return;
+
+            var remaining = dates.filter(function(d) { return d !== todayDate; });
+            var promises = remaining.map(function(date) {
+                return fetchGeoJSON('daily/daily_' + date + '.geojson')
+                    .then(function(data) { if (data) allData.daily[date] = data; })
+                    .catch(function() {});
+            });
+            await Promise.all(promises);
+            console.log('All daily files loaded');
+        }
+
+        // Fetch a single daily file on demand and cache it. Used by the
+        // mobile path when the user clicks a date that hasn't been loaded
+        // yet. Safe to call repeatedly — a hit on the cache is a no-op.
+        function ensureDailyLoaded(date, callback) {
+            if (allData.daily[date]) { if (callback) callback(); return; }
+            fetchGeoJSON('daily/daily_' + date + '.geojson')
+                .then(function(data) {
+                    if (data) allData.daily[date] = data;
+                    if (callback) callback();
+                })
+                .catch(function() { if (callback) callback(); });
+        }
+
+        // Round up to a "nice" Y-axis ceiling.
+        function niceCeil(v) {
+            if (v <= 10) return 10;
+            if (v <= 25) return 25;
+            if (v <= 50) return 50;
+            if (v <= 100) return 100;
+            if (v <= 250) return 250;
+            if (v <= 500) return 500;
+            if (v <= 1000) return 1000;
+            if (v <= 2500) return 2500;
+            if (v <= 5000) return 5000;
+            return Math.ceil(v / 1000) * 1000;
+        }
+
+        // Plot one point per 15-min scrape: each point = number of hexes
+        // that reported an outage at that exact timestamp. X axis spans
+        // 0h → 24h; the line ends at the last scraped reading.
+        function renderHourlyChart(todayDate) {
+            var block = document.getElementById('hourlyChartBlock');
+            if (!block) return;
+            var todayData = allData.daily[todayDate];
+            if (!todayData || !todayData.features) return;
+
+            // Count hexes per exact HH:MM timestamp.
+            var counts = {};
+            todayData.features.forEach(function(f) {
+                var datetimes = f.properties.datetimes_today || '';
+                datetimes.split(',').forEach(function(dt) {
+                    var s = dt.trim();
+                    if (!s) return;
+                    var m = s.match(/(\d{2}):(\d{2})/);
+                    if (!m) return;
+                    var key = m[1] + ':' + m[2];
+                    counts[key] = (counts[key] || 0) + 1;
+                });
+            });
+
+            var points = Object.keys(counts).map(function(hhmm) {
+                var parts = hhmm.split(':');
+                return {
+                    minutes: parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10),
+                    count: counts[hhmm]
+                };
+            }).sort(function(a, b) { return a.minutes - b.minutes; });
+
+            if (points.length === 0) { block.style.display = 'none'; return; }
+
+            var maxCount = 0;
+            points.forEach(function(p) { if (p.count > maxCount) maxCount = p.count; });
+            if (maxCount === 0) { block.style.display = 'none'; return; }
+
+            var yMax = niceCeil(maxCount);
+            var yAxis = document.getElementById('hourlyYAxis');
+            if (yAxis) {
+                yAxis.innerHTML =
+                    '<span>' + yMax.toLocaleString('fr-CA') + '</span>' +
+                    '<span>' + Math.round(yMax * 2 / 3).toLocaleString('fr-CA') + '</span>' +
+                    '<span>' + Math.round(yMax / 3).toLocaleString('fr-CA') + '</span>' +
+                    '<span>0</span>';
+            }
+
+            // viewBox: 0..240 x 0..100. X = (minutes / 1440) * 240.
+            function xFromMinutes(m) { return (m / 1440) * 240; }
+
+            var pts = points.map(function(p) {
+                var x = xFromMinutes(p.minutes);
+                var y = 100 - (p.count / yMax) * 100;
+                return x.toFixed(2) + ',' + y.toFixed(2);
+            });
+            var lineD = 'M ' + pts.join(' L ');
+            var lastPoint = points[points.length - 1];
+            var lastX = xFromMinutes(lastPoint.minutes);
+            var lastY = 100 - (lastPoint.count / yMax) * 100;
+            var areaD = lineD + ' L ' + lastX.toFixed(2) + ',99 L 0,99 Z';
+
+            document.getElementById('hourlyLine').setAttribute('d', lineD);
+            document.getElementById('hourlyArea').setAttribute('d', areaD);
+
+            var nowLine = document.getElementById('hourlyNowLine');
+            if (nowLine) {
+                nowLine.setAttribute('x1', lastX.toFixed(2));
+                nowLine.setAttribute('x2', lastX.toFixed(2));
+                nowLine.style.display = 'block';
+            }
+            var nowDot = document.getElementById('hourlyNowDot');
+            if (nowDot) {
+                nowDot.setAttribute('cx', lastX.toFixed(2));
+                nowDot.setAttribute('cy', lastY.toFixed(2));
+                nowDot.style.display = 'block';
+            }
+
+            // Subtitle: "22 avril 2026 · jusqu'à 16h30"
+            var sub = document.getElementById('hourlyChartSub');
+            if (sub) {
+                var dateFr = formatFrDate(todayDate);
+                var lastH = Math.floor(lastPoint.minutes / 60);
+                var lastM = lastPoint.minutes % 60;
+                var pad2 = function(n) { return n < 10 ? '0' + n : String(n); };
+                sub.innerHTML = dateFr + ' &middot; jusqu\'à ' + lastH + 'h' + pad2(lastM);
+            }
+
+            block.style.display = 'block';
+        }
+
+        // ---------- View state ----------
+        var currentView = 'all';    // 'all' | 'current' | 'day'
+        var currentDate = null;     // date string 'YYYY-MM-DD' when view === 'day'
+        var currentHour = 'all';    // 'all' or '0'..'23'
+        var calendarMonth = null;   // Date obj, first of month currently shown
+        var availableDates = [];    // sorted array of dates present in allData.total
+        var dayIntensityBuckets = {}; // { 'YYYY-MM-DD': 0..5 }
+        var INTENSITY_COLORS = ['#f9fafb', '#fee0d2', '#fcbba1', '#fc9272', '#ef3b2c', '#a50f15'];
+
+        function setView(view, date) {
+            currentView = view;
+            if (view === 'day' && date) {
+                currentDate = date;
+                // Mobile only: fetch the daily file if it isn't cached
+                // yet, then re-render. Desktop has them all preloaded.
+                if (isMobileDevice && !allData.daily[date]) {
+                    ensureDailyLoaded(date, function() {
+                        if (currentView === 'day' && currentDate === date) updateMap();
+                    });
+                }
+            }
+            updateSelectionUI();
+            updateMap();
+        }
+
+        function onHourChange() {
+            currentHour = document.getElementById('hourSelect').value;
+            if (currentView === 'day') updateMap();
+        }
+
+        function updateSelectionUI() {
+            document.getElementById('hideBtn').classList.toggle('active', currentView === 'none');
+            document.getElementById('summaryBtn').classList.toggle('active', currentView === 'all');
+            document.getElementById('currentBtn').classList.toggle('active', currentView === 'current');
+            document.querySelectorAll('.day[data-date]').forEach(function(el) {
+                el.classList.toggle('selected', currentView === 'day' && el.dataset.date === currentDate);
+            });
+            var timeSection = document.getElementById('timeSection');
+            if (timeSection) {
+                timeSection.style.display = currentView === 'day' ? 'block' : 'none';
+            }
+            var calendarBox = document.getElementById('calendarBox');
+            if (calendarBox) {
+                calendarBox.classList.toggle('active', currentView === 'day');
+            }
+        }
+
+        function filterDayByHour(dailyData, hour) {
+            if (hour === 'all') return dailyData;
+            var filtered = { type: 'FeatureCollection', features: [] };
+            dailyData.features.forEach(function(f) {
+                var raw = f.properties.datetimes_today || f.properties.all_datetimes;
+                if (!raw) return;
+                var dts = raw.split(',').map(function(s) { return s.trim(); }).filter(function(s) { return s.length > 0; });
+                var match = dts.filter(function(dt) {
+                    var parts = dt.split(/[ T]/);
+                    if (parts.length < 2) return false;
+                    var h = parseInt(parts[1].split(':')[0], 10);
+                    return h === parseInt(hour, 10);
+                });
+                if (match.length === 0) return;
+                var copy = Object.assign({}, f, {
+                    properties: Object.assign({}, f.properties, { filtered_hours_count: match.length })
+                });
+                filtered.features.push(copy);
+            });
+            return filtered;
+        }
+
+        function updateMap() {
+            if (currentView === 'none') {
+                if (map.getLayer('hex-layer')) map.setLayoutProperty('hex-layer', 'visibility', 'none');
+                if (map.getLayer('hex-outline')) map.setLayoutProperty('hex-outline', 'visibility', 'none');
+                return;
+            }
+            if (map.getLayer('hex-layer')) map.setLayoutProperty('hex-layer', 'visibility', 'visible');
+            if (map.getLayer('hex-outline')) map.setLayoutProperty('hex-outline', 'visibility', 'visible');
+
+            var data = null;
+            if (currentView === 'all') {
+                data = allData.total;
+            } else if (currentView === 'current') {
+                data = allData.current;
+            } else if (currentView === 'day' && currentDate) {
+                var day = allData.daily[currentDate];
+                if (day) data = filterDayByHour(day, currentHour);
+            }
+            if (!data) return;
+
+            currentFeatures = data;
+
+            // Style per view
+            var dayColor = '#a50f15';
+            if (currentView === 'day' && currentDate) {
+                var bucket = dayIntensityBuckets[currentDate];
+                if (typeof bucket === 'number') dayColor = INTENSITY_COLORS[bucket];
+            }
+            data.features.forEach(function(f) {
+                if (currentView === 'all') {
+                    f.properties.display_color = getColor(f.properties.total_occurrences);
+                    f.properties.display_hours = f.properties.total_occurrences;
+                } else if (currentView === 'current') {
+                    f.properties.display_color = '#fde68a';
+                    f.properties.display_hours = f.properties.total_occurrences || 0;
+                } else {
+                    f.properties.display_color = dayColor;
+                    f.properties.display_hours = (currentHour === 'all')
+                        ? (f.properties.occurrences_today || f.properties.total_occurrences || 0)
+                        : (f.properties.filtered_hours_count || 0);
+                }
+            });
+
+            if (map.getSource('hex-data')) {
+                map.getSource('hex-data').setData(data);
+            } else {
+                map.addSource('hex-data', { type: 'geojson', data: data });
+                map.addLayer({
+                    id: 'hex-layer', type: 'fill', source: 'hex-data',
+                    paint: { 'fill-color': ['get', 'display_color'], 'fill-opacity': 0.75 }
+                });
+                map.addLayer({
+                    id: 'hex-outline', type: 'line', source: 'hex-data',
+                    paint: { 'line-color': '#fff', 'line-width': 0.5 }
+                });
+            }
+
+            // Outline / opacity per view
+            if (currentView === 'current') {
+                map.setPaintProperty('hex-outline', 'line-color', '#b45309');
+                map.setPaintProperty('hex-outline', 'line-width', 1.5);
+                map.setPaintProperty('hex-layer', 'fill-opacity', 0.85);
+            } else if (currentView === 'day') {
+                map.setPaintProperty('hex-outline', 'line-color', '#000');
+                map.setPaintProperty('hex-outline', 'line-width', 1.2);
+                map.setPaintProperty('hex-layer', 'fill-opacity', 0.8);
+            } else {
+                map.setPaintProperty('hex-outline', 'line-color', '#fff');
+                map.setPaintProperty('hex-outline', 'line-width', 0.5);
+                map.setPaintProperty('hex-layer', 'fill-opacity', 0.75);
+            }
+        }
+
+        // ---------- Calendar ----------
+        function computeDayIntensities() {
+            // Count distinct 'YYYY-MM-DD' dates each hex was observed on, tally per day.
+            // Slim files (mobile) carry a `dates` field; full files have `all_datetimes`.
+            var countsPerDay = {};
+            allData.total.features.forEach(function(f) {
+                var p = f.properties;
+                var seen = {};
+                if (p.all_datetimes) {
+                    p.all_datetimes.split(',').forEach(function(dt) {
+                        var d = dt.trim().split(' ')[0];
+                        if (!seen[d]) { seen[d] = true; countsPerDay[d] = (countsPerDay[d] || 0) + 1; }
+                    });
+                } else if (p.dates) {
+                    p.dates.split(',').forEach(function(d) {
+                        d = d.trim();
+                        if (d && !seen[d]) { seen[d] = true; countsPerDay[d] = (countsPerDay[d] || 0) + 1; }
+                    });
+                }
+            });
+
+            // Quintile-bucket the daily counts (1..5); days with 0 → 0
+            var values = Object.values(countsPerDay).filter(function(v) { return v > 0; }).sort(function(a,b){ return a-b; });
+            if (values.length === 0) { dayIntensityBuckets = {}; return; }
+            function pct(arr, p) {
+                var idx = (arr.length - 1) * p;
+                var lo = Math.floor(idx), hi = Math.ceil(idx);
+                return lo === hi ? arr[lo] : arr[lo] + (arr[hi] - arr[lo]) * (idx - lo);
+            }
+            var b1 = pct(values, 0.20), b2 = pct(values, 0.40), b3 = pct(values, 0.60), b4 = pct(values, 0.80);
+            Object.keys(countsPerDay).forEach(function(d) {
+                var c = countsPerDay[d];
+                var bucket = 1;
+                if (c > b4) bucket = 5;
+                else if (c > b3) bucket = 4;
+                else if (c > b2) bucket = 3;
+                else if (c > b1) bucket = 2;
+                dayIntensityBuckets[d] = bucket;
+            });
+        }
+
+        function firstOfMonth(d) { return new Date(d.getFullYear(), d.getMonth(), 1); }
+        function addMonth(d, delta) { return new Date(d.getFullYear(), d.getMonth() + delta, 1); }
+        function pad2(n) { return n < 10 ? '0' + n : '' + n; }
+        function dateStr(y, m, d) { return y + '-' + pad2(m + 1) + '-' + pad2(d); }
+
+        function navigateMonth(delta) {
+            calendarMonth = addMonth(calendarMonth, delta);
+            renderCalendar();
+        }
+
+        function renderCalendar() {
+            if (!calendarMonth || availableDates.length === 0) return;
+
+            // The calendar UI sometimes isn't in the DOM yet when this
+            // first runs (mobile prerender / preview contexts). Bail
+            // quietly if so — it'll re-render on the next tick when
+            // setView/navigateMonth fires.
+            var monthLabelEl = document.getElementById('monthLabel');
+            var prevMonthEl  = document.getElementById('prevMonth');
+            var nextMonthEl  = document.getElementById('nextMonth');
+            var grid         = document.getElementById('daysGrid');
+            if (!monthLabelEl || !prevMonthEl || !nextMonthEl || !grid) return;
+
+            // Update month label (French)
+            var MONTHS = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+            var label = MONTHS[calendarMonth.getMonth()] + ' ' + calendarMonth.getFullYear();
+            monthLabelEl.textContent = label;
+
+            // Disable prev/next based on available range
+            var minD = availableDates[0];
+            var maxD = availableDates[availableDates.length - 1];
+            var firstShown = dateStr(calendarMonth.getFullYear(), calendarMonth.getMonth(), 1);
+            var lastShown = dateStr(calendarMonth.getFullYear(), calendarMonth.getMonth(),
+                new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 0).getDate());
+            prevMonthEl.disabled = firstShown <= minD;
+            nextMonthEl.disabled = lastShown >= maxD;
+
+            // Remove old day cells but keep the 7 headers
+            grid.querySelectorAll('.day').forEach(function(el) { el.remove(); });
+
+            var year = calendarMonth.getFullYear();
+            var month = calendarMonth.getMonth();
+            var firstDayOfWeek = (new Date(year, month, 1).getDay() + 6) % 7; // Mon=0
+            var daysInMonth = new Date(year, month + 1, 0).getDate();
+
+            for (var i = 0; i < firstDayOfWeek; i++) {
+                var blank = document.createElement('div');
+                blank.className = 'day day-blank';
+                grid.appendChild(blank);
+            }
+            for (var d = 1; d <= daysInMonth; d++) {
+                var ds = dateStr(year, month, d);
+                var btn = document.createElement('button');
+                btn.className = 'day';
+                btn.textContent = d;
+                btn.dataset.date = ds;
+                if (!allData.daily[ds] && !dayIntensityBuckets[ds]) {
+                    // No data at all for this date — disable
+                    if (ds < minD || ds > maxD) { btn.disabled = true; }
+                    else { btn.classList.add('i-0'); }
+                } else {
+                    var bucket = dayIntensityBuckets[ds] || 0;
+                    btn.classList.add('i-' + bucket);
+                }
+                if (ds === currentDate) btn.classList.add('selected');
+                btn.onclick = (function(date) { return function() { setView('day', date); }; })(ds);
+                grid.appendChild(btn);
+            }
+        }
+
+        // Mobile only: open the detail modal with a placeholder while we
+        // lazy-fetch the full region file. showDetails() re-renders once
+        // the data arrives.
+        function renderDetailsLoading(hexId) {
+            var html = '<h3 class="hex-title">Hexagone #' + hexId + '</h3>' +
+                '<p style="font-size:13px;color:#6b7280;padding:14px 0;display:flex;align-items:center;gap:10px;">' +
+                '<span class="btn-spinner" style="border-color:#e5e7eb;border-top-color:#9ca3af;margin:0;"></span>' +
+                '<span>Chargement de l\'historique en cours…</span></p>';
+            document.getElementById('modalContent').innerHTML = html;
+            document.getElementById('detailModal').classList.add('active');
+            document.getElementById('modalOverlay').classList.add('active');
+        }
+
+        function showDetails(hexId) {
+            if (!allData.total || !allData.total.features) return;
+            var feature = allData.total.features.find(function(f) { return f.properties.hex_id === hexId; });
+            if (!feature) return;
+
+            var props = feature.properties;
+
+            // Mobile: the slim file used for the map drops `all_datetimes`.
+            // If it's missing, lazy-fetch the region's full file (which
+            // unloads any previously cached region) and re-render.
+            if (isMobileDevice && !props.all_datetimes) {
+                renderDetailsLoading(hexId);
+                ensureFullFeature(hexId, props.centroid_lon).then(function(fullFeat) {
+                    if (fullFeat && fullFeat.properties && fullFeat.properties.all_datetimes) {
+                        // Splice the heavy fields into the slim feature so
+                        // subsequent clicks on the same hex are instant.
+                        feature.properties.all_datetimes    = fullFeat.properties.all_datetimes;
+                        feature.properties.first_occurrence = fullFeat.properties.first_occurrence;
+                        feature.properties.last_occurrence  = fullFeat.properties.last_occurrence;
+                    }
+                    // Re-render only if the user is still looking at this hex.
+                    if (document.getElementById('detailModal').classList.contains('active') &&
+                        document.querySelector('.hex-title') &&
+                        document.querySelector('.hex-title').textContent.indexOf('#' + hexId) >= 0) {
+                        showDetails(hexId);
+                    }
+                });
+                return;
+            }
+
+            var datetimes = (props.all_datetimes || '').split(',').map(function(s) { return s.trim(); }).filter(function(s) { return s.length > 0; }).sort();
+
+            var byDate = {};
+            datetimes.forEach(function(dt) {
+                var parts = dt.split(' ');
+                if (!byDate[parts[0]]) byDate[parts[0]] = [];
+                byDate[parts[0]].push(parts[1] || '');
+            });
+
+            var uniqueDates = Object.keys(byDate).sort().reverse();
+
+            var html = '<h3 class="hex-title">Hexagone #' + hexId + '</h3>';
+
+            var isCurrentlyAffected = false;
+            if (allData.current && allData.current.features) {
+                for (var c = 0; c < allData.current.features.length; c++) {
+                    if (allData.current.features[c].properties.hex_id === hexId) {
+                        isCurrentlyAffected = true;
+                        break;
+                    }
+                }
+            }
+            if (isCurrentlyAffected) {
+                html += '<p class="hex-current-line"><span class="current-badge">PANNE EN COURS</span></p>';
+            }
+
+            var totalMin = props.total_occurrences * 15;
+            var h = Math.floor(totalMin / 60);
+            var m = totalMin % 60;
+            var totalTime;
+            if (h === 0) {
+                totalTime = m + ' min';
+            } else {
+                totalTime = h + ' ' + (h === 1 ? 'heure' : 'heures');
+                if (m > 0) totalTime += ' ' + m + ' min';
+            }
+            var daysLabel = uniqueDates.length + ' jour' + (uniqueDates.length > 1 ? 's' : '');
+            var occLabel = props.total_occurrences + ' occurrence' + (props.total_occurrences > 1 ? 's' : '') + ' de 15 minutes';
+            html += '<div class="hex-hero-stat">' +
+                    '<div class="hex-hero-label">Temps total de pannes</div>' +
+                    '<div class="hex-hero-value">' + totalTime + '</div>' +
+                    '<div class="hex-hero-sub">sur ' + daysLabel + ' &middot; ' + occLabel + '</div>' +
+                '</div>';
+
+            html += '<button class="share-trigger" onclick="openShareModal(' + hexId + ')">Partager ces statistiques</button>';
+
+            html += '<div class="hist-section-title">Historique détaillé</div>';
+            html += '<div class="hist-list">';
+
+            var maxDayCount = 0;
+            for (var u = 0; u < uniqueDates.length; u++) {
+                if (byDate[uniqueDates[u]].length > maxDayCount) maxDayCount = byDate[uniqueDates[u]].length;
+            }
+
+            for (var j = 0; j < uniqueDates.length; j++) {
+                var dateKey = uniqueDates[j];
+                var times = byDate[dateKey];
+                var barPx = maxDayCount > 0 ? Math.max(6, Math.round(60 * times.length / maxDayCount)) : 6;
+                html += '<div class="date-row">';
+                html += '<div class="date-header" onclick="toggleTimes(this)">' +
+                        '<span class="hist-row-left">' +
+                            '<span class="caret">&#9654;</span>' +
+                            '<span class="hist-date">' + formatFrDate(dateKey) + '</span>' +
+                        '</span>' +
+                        '<span class="hist-row-right">' +
+                            '<span class="hist-bar" style="width:' + barPx + 'px;"></span>' +
+                            '<span><strong>' + times.length + '</strong> occ.</span>' +
+                        '</span>' +
+                    '</div>';
+                html += '<div class="times-list">';
+                for (var k = 0; k < times.length; k++) {
+                    html += '<div>' + times[k] + '</div>';
+                }
+                html += '</div></div>';
+            }
+            html += '</div>';
+
+            document.getElementById('modalContent').innerHTML = html;
+            document.getElementById('detailModal').classList.add('active');
+            document.getElementById('modalOverlay').classList.add('active');
+        }
+
+        function toggleTimes(header) {
+            var timesList = header.nextElementSibling;
+            timesList.style.display = (timesList.style.display === 'block') ? 'none' : 'block';
+        }
+
+        function closeDetailModal() {
+            document.getElementById('detailModal').classList.remove('active');
+            document.getElementById('modalOverlay').classList.remove('active');
+            if (geocoder) { try { geocoder.clear(); } catch (e) {} }
+        }
+
+        // ============================================================
+        //  Shareable card — "Partager ces statistiques"
+        // ============================================================
+        var currentShareState = null;
+
+        function openShareModal(hexId) {
+            if (!allData.total || !allData.total.features) return;
+            var feature = allData.total.features.find(function(f) { return f.properties.hex_id === hexId; });
+            if (!feature) return;
+            var props = feature.properties;
+
+            // Compute rank among all hexes (1 + number of hexes with strictly more occurrences).
+            var myOcc = props.total_occurrences;
+            var rank = 1;
+            var totalHexes = allData.total.features.length;
+            for (var i = 0; i < totalHexes; i++) {
+                if (allData.total.features[i].properties.total_occurrences > myOcc) rank++;
+            }
+
+            // Break hex history into per-day occurrence counts (byDate).
+            var datetimes = (props.all_datetimes || '').split(',').map(function(s){return s.trim();}).filter(function(s){return s.length>0;});
+            var byDate = {};
+            datetimes.forEach(function(dt) {
+                var dayKey = dt.split(' ')[0];
+                byDate[dayKey] = (byDate[dayKey] || 0) + 1;
+            });
+            var daysAffected = Object.keys(byDate).length;
+
+            // Total outage time in h/min.
+            var totalMin = myOcc * 15;
+            var totH = Math.floor(totalMin / 60);
+            var totM = totalMin % 60;
+            var timeLabel = totH === 0 ? totM + ' min'
+                           : (totM === 0 ? totH + ' h' : totH + ' h ' + totM);
+
+            // Worst month: group by YYYY-MM, sum occurrences, pick max.
+            var monthTotals = {};
+            Object.keys(byDate).forEach(function(k) {
+                var ym = k.substring(0, 7);
+                monthTotals[ym] = (monthTotals[ym] || 0) + byDate[k];
+            });
+            var worstMonth = null, worstMonthCount = 0;
+            Object.keys(monthTotals).forEach(function(ym) {
+                if (monthTotals[ym] > worstMonthCount) {
+                    worstMonthCount = monthTotals[ym];
+                    worstMonth = ym;
+                }
+            });
+            var worstMonthLabel = worstMonth
+                ? FR_MONTHS[parseInt(worstMonth.substring(5,7), 10) - 1]
+                : '—';
+            worstMonthLabel = worstMonthLabel.charAt(0).toUpperCase() + worstMonthLabel.slice(1);
+
+            // Build chart — one spike per day that had occurrences.
+            // Range = Jan 1 of latest year in data → latest date.
+            // Chart range: Jan 1 of the current year → today's date (client clock),
+            // regardless of when the hex was last impacted. That way a secteur that
+            // was only affected in January still shows Feb/Mar/Apr as empty history.
+            var dayKeys = Object.keys(byDate).sort();
+            var now = new Date();
+            var year = now.getFullYear();
+            var startDate = new Date(year, 0, 1);
+            var endDate = new Date(year, now.getMonth(), now.getDate());
+            var totalDays = Math.max(1, Math.round((endDate - startDate) / 86400000) + 1);
+            var events = dayKeys.map(function(k) {
+                var d = new Date(k + 'T00:00:00');
+                var dayIdx = Math.round((d - startDate) / 86400000);
+                return { day: dayIdx, hours: byDate[k] * 0.25 };
+            }).sort(function(a,b){ return a.day - b.day; });
+
+            var maxHours = 1;
+            events.forEach(function(e){ if (e.hours > maxHours) maxHours = e.hours; });
+            // Round y-axis top up a little so peaks don't kiss the top line.
+            var yMax = Math.ceil(maxHours * 1.05 * 2) / 2;
+            if (yMax < 1) yMax = 1;
+
+            // Triangle half-width in viewBox units, ±2.5 days.
+            var HALF_VB = Math.max(3, 2.5 * (240 / totalDays));
+            // But also cap so it doesn't overwhelm short ranges.
+            HALF_VB = Math.min(HALF_VB, 10);
+            var BASE = 99, TOP = 4;
+
+            function peakY(h) { return BASE - (h / yMax) * (BASE - TOP); }
+
+            // Precompute peak x-positions so each spike's half-width can be
+            // clipped to *half* the gap to its neighbor. That way adjacent
+            // events never overlap and produce crossed triangles.
+            // Guard against totalDays === 1 (Jan 1 edge case) where the
+            // naïve (day / 0) would produce NaN positions.
+            var xDenom = Math.max(1, totalDays - 1);
+            var xs = events.map(function(e) { return (e.day / xDenom) * 240; });
+
+            var parts = ['M 0,' + BASE];
+            events.forEach(function(e, i) {
+                var px = xs[i];
+                var halfL = HALF_VB;
+                var halfR = HALF_VB;
+                if (i > 0) halfL = Math.min(halfL, (px - xs[i - 1]) / 2);
+                if (i < events.length - 1) halfR = Math.min(halfR, (xs[i + 1] - px) / 2);
+                var lx = Math.max(0, px - halfL);
+                var rx = Math.min(240, px + halfR);
+                parts.push('L ' + lx.toFixed(2) + ',' + BASE);
+                parts.push('L ' + px.toFixed(2) + ',' + peakY(e.hours).toFixed(2));
+                parts.push('L ' + rx.toFixed(2) + ',' + BASE);
+            });
+            parts.push('L 240,' + BASE);
+            var linePath = parts.join(' ');
+            var areaPath = linePath + ' Z';
+
+            var lastMonthIdx = endDate.getMonth();
+
+            // Month axis: one span per month from Jan to endMonth, weighted by day count.
+            var monthAxis = '';
+            for (var mo = 0; mo <= lastMonthIdx; mo++) {
+                var monthStart = new Date(year, mo, 1);
+                var monthEnd = (mo === lastMonthIdx)
+                    ? endDate
+                    : new Date(year, mo + 1, 0); // last day of that month
+                var daysInSpan = Math.round((monthEnd - monthStart) / 86400000) + 1;
+                var name = FR_MONTHS[mo].charAt(0).toUpperCase() + FR_MONTHS[mo].slice(1);
+                monthAxis += '<span style="flex:' + daysInSpan + ';">' + name + '</span>';
+            }
+
+            var lastDotSvg = '';
+
+            var html =
+                '<div class="sc-hero">' +
+                    '<div class="sc-eyebrow"><span>Mon secteur</span><span class="sc-hex-id">#' + hexId + '</span></div>' +
+                    '<div class="sc-rank">' + rank.toLocaleString('fr-CA') + '<sup>e</sup></div>' +
+                    '<div class="sc-caption">pire secteur au Québec pour les pannes en <strong>' + year + '</strong>, sur <strong>' + totalHexes.toLocaleString('fr-CA') + '</strong> hexagones.</div>' +
+                '</div>' +
+                '<div class="sc-stats">' +
+                    '<div><div class="sc-stat-label">Temps sans courant</div><div class="sc-stat-value">' + timeLabel + '</div></div>' +
+                    '<div><div class="sc-stat-label">Jours affectés</div><div class="sc-stat-value">' + daysAffected + '</div></div>' +
+                    '<div><div class="sc-stat-label">Pire mois</div><div class="sc-stat-value">' + worstMonthLabel + '</div></div>' +
+                '</div>' +
+                '<div class="sc-chart">' +
+                    '<div class="sc-chart-title">Pannes dans mon secteur cette année</div>' +
+                    '<div class="sc-chart-wrap">' +
+                        '<div class="sc-yaxis"><span>' + yMax.toFixed(yMax % 1 === 0 ? 0 : 1) + ' h</span><span></span><span></span><span>0</span></div>' +
+                        '<div class="sc-chart-body">' +
+                            '<svg class="sc-svg" viewBox="0 0 240 100" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">' +
+                                '<defs><linearGradient id="scGrad" x1="0" y1="0" x2="0" y2="1">' +
+                                    '<stop offset="0%" stop-color="#f59e0b" stop-opacity="0.95"/>' +
+                                    '<stop offset="60%" stop-color="#fcd34d" stop-opacity="0.75"/>' +
+                                    '<stop offset="100%" stop-color="#fef3c7" stop-opacity="0.45"/>' +
+                                '</linearGradient></defs>' +
+                                '<line x1="0" y1="99" x2="240" y2="99" stroke="#e5e7eb" stroke-width="0.5"/>' +
+                                '<line x1="240" y1="0" x2="240" y2="100" stroke="#d1d5db" stroke-width="0.5" stroke-dasharray="2 2"/>' +
+                                '<path d="' + areaPath + '" fill="url(#scGrad)"/>' +
+                                '<path d="' + linePath + '" fill="none" stroke="#d97706" stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>' +
+                                lastDotSvg +
+                            '</svg>' +
+                            '<div class="sc-xaxis">' + monthAxis + '</div>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="sc-footer"><span class="sc-logo">Où sont les pannes?</span><span>ousontlespannes.ca</span></div>';
+
+            document.getElementById('shareCard').innerHTML = html;
+
+            currentShareState = {
+                hexId: hexId,
+                rank: rank,
+                totalHexes: totalHexes,
+                timeLabel: timeLabel,
+                totalMinutes: totalMin,
+                daysAffected: daysAffected,
+                year: year
+            };
+
+            document.getElementById('shareModal').classList.add('active');
+            document.getElementById('modalOverlay').classList.add('active');
+        }
+
+        function closeShareModal() {
+            document.getElementById('shareModal').classList.remove('active');
+            // Re-show the detail modal underneath if it's still marked active
+            if (!document.getElementById('detailModal').classList.contains('active')) {
+                document.getElementById('modalOverlay').classList.remove('active');
+            }
+            var copyLabel = document.getElementById('copyLinkLabel');
+            if (copyLabel) copyLabel.textContent = 'Copier';
+        }
+
+        // Insert a regular space as the French thousands separator (e.g. 8588 → "8 588").
+        function frNum(n) {
+            return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+        }
+
+        function buildShareMessage(s) {
+            var h = Math.floor(s.totalMinutes / 60);
+            var m = s.totalMinutes % 60;
+            var timeCompact;
+            if (h === 0) timeCompact = m + ' min';
+            else if (m === 0) timeCompact = h + 'h';
+            else timeCompact = h + 'h' + (m < 10 ? '0' + m : m);
+            var dayWord = s.daysAffected > 1 ? ' jours' : ' jour';
+            return 'Mon secteur (#' + s.hexId + ') est le ' + frNum(s.rank) + 'e pire au Québec pour les pannes en ' + s.year +
+                   ' (sur ' + frNum(s.totalHexes) + '), avec ' + timeCompact + ' sans courant sur ' + s.daysAffected + dayWord +
+                   ' depuis le 1er janvier ' + s.year + '. Voyez les statistiques pour votre secteur:';
+        }
+
+        function shareVia(platform) {
+            if (!currentShareState) return;
+            var s = currentShareState;
+            var url = 'https://ousontlespannes.ca/';
+            var msg = buildShareMessage(s);
+            var shareUrl = '';
+            switch (platform) {
+                case 'twitter':
+                    shareUrl = 'https://twitter.com/intent/tweet?text=' + encodeURIComponent(msg) + '&url=' + encodeURIComponent(url);
+                    break;
+                case 'bluesky':
+                    shareUrl = 'https://bsky.app/intent/compose?text=' + encodeURIComponent(msg + ' ' + url);
+                    break;
+                case 'facebook':
+                    shareUrl = 'https://www.facebook.com/sharer/sharer.php?u=' + encodeURIComponent(url) + '&quote=' + encodeURIComponent(msg);
+                    break;
+                case 'whatsapp':
+                    shareUrl = 'https://wa.me/?text=' + encodeURIComponent(msg + ' ' + url);
+                    break;
+                case 'email':
+                    shareUrl = 'mailto:?subject=' + encodeURIComponent('Où sont les pannes?') +
+                               '&body=' + encodeURIComponent(msg + '\n\n' + url);
+                    break;
+                case 'copy':
+                    var toCopy = msg + ' ' + url;
+                    if (navigator.clipboard && navigator.clipboard.writeText) {
+                        navigator.clipboard.writeText(toCopy).then(function() {
+                            var l = document.getElementById('copyLinkLabel');
+                            if (l) { l.textContent = 'Copié!'; setTimeout(function(){ l.textContent = 'Copier'; }, 1800); }
+                        });
+                    }
+                    return;
+            }
+            if (shareUrl) window.open(shareUrl, '_blank', 'noopener');
+        }
+
+        function downloadShareCard() {
+            if (typeof html2canvas === 'undefined') {
+                alert('Impossible de générer l\'image (html2canvas n\'est pas chargé).');
+                return;
+            }
+            var card = document.getElementById('shareCard');
+            if (!card) return;
+            html2canvas(card, { scale: 2, backgroundColor: '#ffffff', useCORS: true }).then(function(canvas) {
+                var link = document.createElement('a');
+                var id = currentShareState ? currentShareState.hexId : 'secteur';
+                link.download = 'ousontlespannes-' + id + '.png';
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            }).catch(function(err) {
+                console.error('html2canvas error:', err);
+                alert('Erreur lors de la génération de l\'image.');
+            });
+        }
+
+        // Instagram has no web share URL. On mobile we can trigger the native
+        // share sheet (which includes Instagram) via Web Share API with a File.
+        // On desktop or unsupported browsers we fall back to downloading the
+        // image and opening Instagram.com so the user can upload manually.
+        function shareInstagram() {
+            if (typeof html2canvas === 'undefined') return;
+            var card = document.getElementById('shareCard');
+            if (!card) return;
+            var s = currentShareState || {};
+            var msg = s.hexId
+                ? 'Mon secteur (#' + s.hexId + ') est le ' + s.rank + 'e pire au Québec pour les pannes. ousontlespannes.ca'
+                : 'ousontlespannes.ca';
+            var id = s.hexId || 'secteur';
+
+            html2canvas(card, { scale: 2, backgroundColor: '#ffffff', useCORS: true }).then(function(canvas) {
+                canvas.toBlob(function(blob) {
+                    if (!blob) return;
+                    var file = new File([blob], 'ousontlespannes-' + id + '.png', { type: 'image/png' });
+                    var shareData = { text: msg, files: [file] };
+
+                    if (navigator.canShare && navigator.canShare(shareData) && navigator.share) {
+                        navigator.share(shareData).catch(function() { fallback(blob); });
+                    } else {
+                        fallback(blob);
+                    }
+                }, 'image/png');
+
+                function fallback(blob) {
+                    // Download PNG and open Instagram so the user can upload it.
+                    var url = URL.createObjectURL(blob);
+                    var link = document.createElement('a');
+                    link.download = 'ousontlespannes-' + id + '.png';
+                    link.href = url;
+                    link.click();
+                    setTimeout(function() { URL.revokeObjectURL(url); }, 2000);
+                    window.open('https://www.instagram.com/', '_blank', 'noopener');
+                }
+            }).catch(function(err) {
+                console.error('html2canvas error:', err);
+            });
+        }
+        // Tracks whether the FAQ modal was opened from the welcome modal, so
+        // closing the FAQ (via ×, overlay click, or Esc) returns the user to
+        // the welcome modal instead of dismissing everything and starting
+        // the app.
+        var faqOpenedFromWelcome = false;
+        function openFaqModal() {
+            document.getElementById('faqModal').classList.add('active');
+            document.getElementById('modalOverlay').classList.add('active');
+        }
+        function closeFaqModal() {
+            document.getElementById('faqModal').classList.remove('active');
+            var backBtn = document.getElementById('faqBackBtn');
+            if (backBtn) backBtn.style.display = 'none';
+            if (faqOpenedFromWelcome) {
+                faqOpenedFromWelcome = false;
+                document.getElementById('welcomeModal').classList.add('active');
+                // Leave the overlay active so the welcome modal stays modal.
+            } else {
+                document.getElementById('modalOverlay').classList.remove('active');
+            }
+        }
+        function toggleLegendInfo(evt) {
+            if (evt) evt.stopPropagation();
+            var pop = document.getElementById('legendInfoPopover');
+            if (!pop) return;
+            var willOpen = !pop.classList.contains('open');
+            pop.classList.toggle('open', willOpen);
+            if (willOpen) {
+                setTimeout(function() {
+                    document.addEventListener('click', function h(e) {
+                        if (!e.target.closest('.legend-info-wrap')) {
+                            pop.classList.remove('open');
+                            document.removeEventListener('click', h);
+                        }
+                    });
+                }, 0);
+            }
+        }
+
+        function closeWelcomeModal() {
+            document.getElementById('welcomeModal').classList.remove('active');
+            if (!document.getElementById('faqModal').classList.contains('active') &&
+                !document.getElementById('detailModal').classList.contains('active')) {
+                document.getElementById('modalOverlay').classList.remove('active');
+            }
+        }
+        function openFaqFromWelcome() {
+            faqOpenedFromWelcome = true;
+            var backBtn = document.getElementById('faqBackBtn');
+            if (backBtn) backBtn.style.display = 'inline-block';
+            document.getElementById('welcomeModal').classList.remove('active');
+            openFaqModal();
+        }
+        document.getElementById('modalOverlay').onclick = function() {
+            // If the FAQ is open on top of the welcome modal, clicking the
+            // overlay should only close the FAQ and return the user to the
+            // welcome modal — don't cascade and dismiss everything.
+            if (document.getElementById('faqModal').classList.contains('active')) {
+                closeFaqModal();
+                return;
+            }
+            // Share modal sits on top of the detail modal; dismissing it
+            // returns the user to the detail view without closing everything.
+            if (document.getElementById('shareModal').classList.contains('active')) {
+                closeShareModal();
+                return;
+            }
+            closeDetailModal();
+            closeWelcomeModal();
+        };
+
+        // Esc closes the topmost open modal. Same priority order as the
+        // overlay click handler: share > faq > detail > welcome.
+        document.addEventListener('keydown', function(ev) {
+            if (ev.key !== 'Escape' && ev.key !== 'Esc') return;
+            if (document.getElementById('shareModal').classList.contains('active')) {
+                closeShareModal(); return;
+            }
+            if (document.getElementById('faqModal').classList.contains('active')) {
+                closeFaqModal(); return;
+            }
+            if (document.getElementById('detailModal').classList.contains('active')) {
+                closeDetailModal(); return;
+            }
+            if (document.getElementById('welcomeModal').classList.contains('active')) {
+                // Welcome modal stays put until data is ready — don't let Esc
+                // dismiss it before the user has a working app.
+                return;
+            }
+        });
+
+        // Mobile only: bottom-drawer toggle. The Affichage panel starts
+        // collapsed so the map is visible first; tap the title bar to expand,
+        // tap again to collapse.
+        (function initMobileDrawer() {
+            if (!window.matchMedia || !window.matchMedia('(max-width: 640px)').matches) return;
+            var controls = document.querySelector('.controls');
+            if (!controls) return;
+            controls.classList.add('collapsed');
+            var title = controls.querySelector('.panel-title');
+            if (title) {
+                title.textContent = 'Filtrer par';
+                title.addEventListener('click', function(ev) {
+                    ev.stopPropagation();
+                    controls.classList.toggle('collapsed');
+                });
+            }
+            // Tapping the drag-handle area (top ~22px of the panel) also toggles.
+            controls.addEventListener('click', function(ev) {
+                if (!controls.classList.contains('collapsed')) return;
+                controls.classList.remove('collapsed');
+            });
+
+            // Move the geocoder out of .controls so the search bar is
+            // always visible (independent of the collapse state). It
+            // becomes a sibling of .controls in the DOM, with the
+            // .mobile-floating CSS class to position it above .controls.
+            var geocoderEl = document.getElementById('geocoderContainer');
+            if (geocoderEl && geocoderEl.parentNode === controls) {
+                document.body.appendChild(geocoderEl);
+                geocoderEl.classList.add('mobile-floating');
+            }
+        })();
+
+        // Fetch total visitor count from GoatCounter and show the pill.
+        // If the request fails, the pill stays hidden.
+        (function loadVisitorCount() {
+            fetch('https://ebudem.goatcounter.com/counter/TOTAL.json')
+                .then(function(r) { return r.ok ? r.json() : null; })
+                .then(function(data) {
+                    if (!data || !data.count) return;
+                    var n = parseInt(String(data.count).replace(/\s/g, ''), 10);
+                    if (isNaN(n) || n <= 0) return;
+                    document.getElementById('visitorCount').textContent = n.toLocaleString('fr-CA');
+                    document.getElementById('visitorPill').classList.add('visible');
+                })
+                .catch(function() { /* silent */ });
+        })();
+
+        // Tracks whether core data has finished loading. If the user clicks
+        // "Accéder à l'outil" before this flips to true, we keep the modal
+        // open with a spinner and close it automatically once data is ready.
+        var dataLoaded = false;
+        var waitingToStart = false;
+        function onDataLoaded() {
+            dataLoaded = true;
+            if (waitingToStart) {
+                waitingToStart = false;
+                closeWelcomeModal();
+            }
+        }
+        function startFromWelcome() {
+            // Close the modal immediately. If data isn't ready yet, the
+            // map's own loader (#mapLoader spinner) takes over and the UI
+            // populates as data arrives. This avoids gating the user
+            // behind a modal that can hang for many seconds on mobile,
+            // and behaves identically to the old "fast" path on browser
+            // (where data is usually already loaded by the time the user
+            // clicks anyway).
+            closeWelcomeModal();
+        }
+
+        // Kick off the data fetch IMMEDIATELY (in parallel with the
+        // basemap load). loadCoreData() is memoized via coreDataPromise,
+        // so calling it again from map.on('load') returns the same
+        // in-flight promise. Net effect: by the time the user clicks
+        // "Accéder à l'outil", the % counter is often well past 0 %.
+        loadCoreData();
+
+        // Initialize map
+        map.on('load', async function() {
+            try {
+                var dates = await loadCoreData();
+                updateMap();
+
+                // Mobile only: wait for the hex-data source to finish
+                // loading into Mapbox before hiding the spinner. Reduces
+                // the visible gap between 100 % and hexagons appearing.
+                // Lighter than waiting for `idle` (which crashed on iOS),
+                // because we don't wait for a fully painted frame.
+                if (isMobileDevice) {
+                    await new Promise(function(resolve) {
+                        var done = false;
+                        var finish = function() { if (done) return; done = true; resolve(); };
+                        if (map.isSourceLoaded && map.isSourceLoaded('hex-data')) {
+                            finish();
+                            return;
+                        }
+                        var handler = function(e) {
+                            if (e.sourceId === 'hex-data' && e.isSourceLoaded) {
+                                map.off('sourcedata', handler);
+                                finish();
+                            }
+                        };
+                        map.on('sourcedata', handler);
+                        // Safety net: never hold the spinner more than 5 sec.
+                        setTimeout(function() {
+                            map.off('sourcedata', handler);
+                            finish();
+                        }, 5000);
+                    });
+                }
+
+                hideLoader();
+                onDataLoaded();
+                // Kick off per-day loads in the background so date filters work soon
+                loadDailyDataInBackground(dates);
+            } catch (e) {
+                console.error('Error loading data:', e);
+                setLoaderText('Erreur de chargement');
+                // Re-enable the button so the user can retry / dismiss.
+                var btn = document.getElementById('welcomeStartBtn');
+                if (btn) {
+                    btn.disabled = false;
+                    btn.textContent = 'Accéder à l\'outil';
+                }
+                waitingToStart = false;
+            }
+
+            // Local geocoder: if the user types a pure-numeric string (a
+            // hex ID like "752237"), look it up in the loaded hexagon data
+            // and surface it as a result alongside address matches.
+            function hexLocalGeocoder(query) {
+                var q = (query || '').trim();
+                if (!/^[0-9]+$/.test(q)) return [];
+                if (!allData.total || !allData.total.features) return [];
+                var target = parseInt(q, 10);
+                var matches = [];
+                // Exact match first, then prefix matches (up to 5).
+                var exact = null;
+                for (var i = 0; i < allData.total.features.length && matches.length < 5; i++) {
+                    var f = allData.total.features[i];
+                    var hid = f.properties.hex_id;
+                    if (hid == null) continue;
+                    if (hid === target) { exact = f; continue; }
+                    if (String(hid).indexOf(q) === 0) matches.push(f);
+                }
+                var out = [];
+                function buildResult(feat) {
+                    var lat = feat.properties.centroid_lat;
+                    var lon = feat.properties.centroid_lon;
+                    if (typeof lat !== 'number' || typeof lon !== 'number') return null;
+                    return {
+                        id: 'hex-' + feat.properties.hex_id,
+                        type: 'Feature',
+                        place_name: 'Hexagone #' + feat.properties.hex_id,
+                        place_type: ['hexagon'],
+                        center: [lon, lat],
+                        geometry: { type: 'Point', coordinates: [lon, lat] },
+                        properties: { hex_id: feat.properties.hex_id },
+                        text: 'Hexagone #' + feat.properties.hex_id
+                    };
+                }
+                if (exact) { var r = buildResult(exact); if (r) out.push(r); }
+                for (var j = 0; j < matches.length; j++) {
+                    var r2 = buildResult(matches[j]); if (r2) out.push(r2);
+                }
+                return out;
+            }
+
+            geocoder = new MapboxGeocoder({
+                accessToken: mapboxgl.accessToken,
+                mapboxgl: mapboxgl,
+                marker: true,
+                placeholder: 'Adresse ou # d\'hexagone...',
+                countries: 'ca',
+                language: 'fr',
+                localGeocoder: hexLocalGeocoder,
+                // Prefer local hex results above address matches when the
+                // query is purely numeric.
+                externalGeocoder: null
+            });
+            // When the user picks a hex result, open the detail modal so
+            // they see the occurrence history for that hexagon.
+            geocoder.on('result', function(e) {
+                var r = e.result;
+                if (r && r.place_type && r.place_type[0] === 'hexagon' && r.properties && r.properties.hex_id != null) {
+                    // Small delay so the map flyTo animation isn't interrupted.
+                    setTimeout(function() { showDetails(r.properties.hex_id); }, 450);
+                }
+            });
+            var geocoderContainer = document.getElementById('geocoderContainer');
+            if (geocoderContainer) geocoderContainer.appendChild(geocoder.onAdd(map));
+            map.addControl(new mapboxgl.NavigationControl(), 'bottom-left');
+
+            function onHexClick(e) {
+                if (e.features.length > 0) {
+                    if (geocoder) { try { geocoder.clear(); } catch (err) {} }
+                    var props = e.features[0].properties;
+                    var isCurrent = currentView === 'current';
+                    var count = isCurrent
+                        ? (props.occurrences_today || props.total_occurrences || 1)
+                        : (props.total_occurrences || props.occurrences_today || 1);
+
+                    var popTotalMin = count * 15;
+                    var popH = Math.floor(popTotalMin / 60);
+                    var popM = popTotalMin % 60;
+                    var popDuration;
+                    if (popH === 0) {
+                        popDuration = popM + ' min';
+                    } else if (popM === 0) {
+                        popDuration = popH + ' h';
+                    } else {
+                        popDuration = popH + ' h ' + popM + ' min';
+                    }
+
+                    var popupContent = '<div class="hex-pop-title">Hexagone #' + props.hex_id;
+                    if (isCurrent) {
+                        popupContent += '<span class="current-badge">EN COURS</span>';
+                    }
+                    popupContent += '</div>' +
+                        '<div class="hex-pop-kv">' +
+                            '<div class="hex-pop-row">' +
+                                '<span class="hex-pop-label">Durée totale</span>' +
+                                '<span class="hex-pop-value accent">' + popDuration + '</span>' +
+                            '</div>' +
+                            '<div class="hex-pop-row">' +
+                                '<span class="hex-pop-label">Occurrences</span>' +
+                                '<span class="hex-pop-value">' + count + '</span>' +
+                            '</div>' +
+                            '<div class="hex-pop-row">' +
+                                '<span class="hex-pop-label">Jours affectés</span>' +
+                                '<span class="hex-pop-value">' + (props.days_affected || 1) + '</span>' +
+                            '</div>' +
+                            '<div class="hex-pop-row">' +
+                                '<span class="hex-pop-label">Centroïde</span>' +
+                                '<span class="hex-pop-coord">' + Number(props.centroid_lat).toFixed(4) + ', ' + Number(props.centroid_lon).toFixed(4) + '</span>' +
+                            '</div>' +
+                        '</div>' +
+                        '<a class="hex-pop-cta" onclick="showDetails(' + props.hex_id + ')">Voir l\'historique détaillé</a>';
+
+                    // Close any previous popup so rapid hex clicks don't
+                    // leave stacked popups behind the detail modal.
+                    if (currentPopup) { try { currentPopup.remove(); } catch (err) {} }
+                    currentPopup = new mapboxgl.Popup()
+                        .setLngLat(e.lngLat)
+                        .setHTML(popupContent)
+                        .addTo(map);
+                }
+            }
+            var hexHoverEnter = function() { map.getCanvas().style.cursor = 'pointer'; };
+            var hexHoverLeave = function() { map.getCanvas().style.cursor = ''; };
+
+            map.on('click', 'hex-layer', onHexClick);
+            map.on('mouseenter', 'hex-layer', hexHoverEnter);
+            map.on('mouseleave', 'hex-layer', hexHoverLeave);
+        });
+    </script>
+</body>
+</html>
